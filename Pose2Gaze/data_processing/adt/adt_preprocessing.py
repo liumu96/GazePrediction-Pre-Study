@@ -25,14 +25,14 @@ from projectaria_tools.projects.adt import (
 )
 
 dataset_path = "../../../../Pose2Gaze/datasets/public/adt/"
-dataset_processed_path = "../../scratch/pose_forecast/adt_pose2gaze/"
+dataset_processed_path = "../../../../Datasets/scratch/pose_forecast/adt_pose2gaze/"
 remake_dir(dataset_processed_path)
 remake_dir(dataset_processed_path + "train/")
 remake_dir(dataset_processed_path + "test/")
 
 dataset_info = pd.read_csv('adt.csv')
 
-save_images = False
+save_images = True
 
 for i, seq in enumerate(dataset_info['sequence_name']):    
     action = dataset_info['action'][i]
@@ -57,15 +57,26 @@ for i, seq in enumerate(dataset_info['sequence_name']):
     gt_provider = AriaDigitalTwinDataProvider(data_paths)
     # print("loading ground truth data done")
 
+    # 添加时间范围检查
+    start_time = gt_provider.get_start_time_ns()
+    end_time = gt_provider.get_end_time_ns()
+    print(f"Data time range: [{start_time}, {end_time}]")
+
     stream_id = StreamId("214-1")
     img_timestamps_ns = gt_provider.get_aria_device_capture_timestamps_ns(stream_id)
+    # 过滤超出范围的时间戳
+    valid_timestamps = [ts for ts in img_timestamps_ns if start_time <= ts <= end_time]
+    if len(valid_timestamps) != len(img_timestamps_ns):
+        print(f"Warning: {len(img_timestamps_ns) - len(valid_timestamps)} timestamps out of range")
+        img_timestamps_ns = valid_timestamps
+
     frame_num = len(img_timestamps_ns)
     # print("There are {} frames in Sequence {}".format(frame_num, seq))
 
     # get all available skeletons in a sequence
     skeleton_ids = gt_provider.get_skeleton_ids()
     skeleton_info = gt_provider.get_instance_info_by_id(skeleton_ids[0])
-    print("skeleton ", skeleton_info.name, " wears ", skeleton_info.associated_device_serial)
+    # print("skeleton ", skeleton_info.name, " wears ", skeleton_info.associated_device_serial)
 
     useful_frame = []
     gaze_data = np.zeros((frame_num, 6))
@@ -76,9 +87,14 @@ for i, seq in enumerate(dataset_info['sequence_name']):
     local_time = time.asctime(time.localtime(time.time()))
     print('\nProcessing starts at ' + local_time)    
     for j in range(frame_num):
+        if j % 100 == 0:
+            print(f"Processing frame {j}/{frame_num} in sequence {seq}")
         timestamps_ns = img_timestamps_ns[j]
         skeleton_with_dt = gt_provider.get_skeleton_by_timestamp_ns(timestamps_ns, skeleton_ids[0])
-        assert skeleton_with_dt.is_valid(), "skeleton is not valid"
+        # assert skeleton_with_dt.is_valid(), "skeleton is not valid"
+        if not skeleton_with_dt.is_valid():
+            print(f"Warning: invalid skeleton at frame {j}")
+            continue
 
         skeleton = skeleton_with_dt.data()
         # use the 21 body joints
@@ -87,7 +103,7 @@ for i, seq in enumerate(dataset_info['sequence_name']):
         pose_data[j] = joints
 
         # convert image to numpy array
-        if save_images:
+        if save_images and seq == "Apartment_release_work_skeleton_seq106_M1292":
             image_with_dt = gt_provider.get_aria_image_by_timestamp_ns(timestamps_ns, stream_id)
             image = image_with_dt.data().to_numpy_array()
             # pad SLAM camera gray-scale image to 3 channel for color visualization
@@ -140,11 +156,12 @@ for i, seq in enumerate(dataset_info['sequence_name']):
             gaze_center_in_pixels[0] = x_pixel
             gaze_center_in_pixels[1] = y_pixel
 
-            if save_images:
+            if save_images and seq == "Apartment_release_work_skeleton_seq106_M1292":
                 rotated_image = np.rot90(image, k=-1)
                 flipped_image = np.fliplr(rotated_image)
                 img = Image.fromarray(flipped_image)
                 path = img_path + str(j) + '.png'
+                print(f"Saving image to {path}")
                 img.save(path)
                 
             useful_frame.append(j)
@@ -164,10 +181,3 @@ for i, seq in enumerate(dataset_info['sequence_name']):
     np.save(pose_path, pose_data)
     local_time = time.asctime(time.localtime(time.time()))
     print('\nProcessing ends at ' + local_time)
-
-        
-        
-    
-
-
-    
