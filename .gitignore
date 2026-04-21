@@ -205,3 +205,25 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Local agent/editor scratch
+.codex
+
+# Windows alternate data stream metadata occasionally copied from downloads.
+*:Zone.Identifier
+
+# Local external checkouts. Keep source checkouts here, but do not vendor them
+# into this sandbox repository.
+external/*
+!external/README.md
+!external/.gitkeep
+
+# ADT datasets are large. In WSL, keep them on /mnt/d/... and point to them
+# with ADT_DATA_ROOT instead of storing them inside this repository.
+data/
+
+# Generated analysis artifacts.
+outputs/figures/*
+!outputs/figures/.gitkeep
+outputs/reports/*
+!outputs/reports/.gitkeep
