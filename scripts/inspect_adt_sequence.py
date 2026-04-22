@@ -12,7 +12,10 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
+from adt_sandbox.config import load_dotenv, resolve_data_root  # noqa: E402
 from adt_sandbox.adt_files import format_report, inspect_sequence  # noqa: E402
+
+load_dotenv(REPO_ROOT / ".env")
 
 
 def parse_args() -> argparse.Namespace:
@@ -44,9 +47,9 @@ def resolve_sequence_path(sequence: Path) -> Path:
     if expanded.exists() or expanded.is_absolute():
         return expanded
 
-    data_root = os.environ.get("ADT_DATA_ROOT")
+    data_root = resolve_data_root()
     if data_root:
-        return Path(data_root).expanduser() / expanded
+        return data_root / expanded
 
     return expanded
 

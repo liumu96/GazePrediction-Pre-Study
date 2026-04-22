@@ -66,6 +66,8 @@ export ADT_DATA_ROOT=/mnt/d/Pose2Gaze-ADT
 
 For repeated use, put the real value in your shell config or a local untracked
 `.env` file. The template is [configs/paths.example.env](configs/paths.example.env).
+Scripts in this repository automatically load `.env` from the repository root.
+VS Code is also configured to inject this `.env` into Python terminals.
 
 Inside that root, a typical sequence layout is:
 
@@ -96,10 +98,9 @@ absolute path:
 python scripts/inspect_adt_sequence.py /mnt/d/path/to/adt/<sequence_id>
 ```
 
-or a sequence id resolved under `ADT_DATA_ROOT`:
+or a sequence id resolved under `ADT_DATA_ROOT` from the local `.env`:
 
 ```bash
-export ADT_DATA_ROOT=/mnt/d/Pose2Gaze-ADT
 python scripts/inspect_adt_sequence.py <sequence_id>
 ```
 
@@ -110,9 +111,29 @@ python scripts/inspect_adt_sequence.py <sequence_id> --json \
   > outputs/reports/<sequence_id>_summary.json
 ```
 
+## Exploration Roadmap / 探索路线
+
+ADT 探索路线记录在：
+
+- [docs/adt_exploration_plan.md](docs/adt_exploration_plan.md)
+- [docs/adt_feature_extraction_guide.md](docs/adt_feature_extraction_guide.md)
+
+这两份文档以中文说明为主，同时保留官方 API、字段名和坐标系英文术语。
+当 scripts、notebooks、APIs 或假设发生变化时，及时同步更新。
+
+当前下一步：
+
+```text
+src/adt_sandbox/providers.py
+src/adt_sandbox/gaze.py
+scripts/extract_gaze_samples.py
+notebooks/01_gaze_feature_extraction.ipynb
+```
+
 ## Working Conventions
 
 - Activate the dedicated `adt` environment before running scripts or notebooks.
+- Keep exploration decisions in `docs/`, not only in chat or notebook outputs.
 - Keep reusable code in `src/adt_sandbox`.
 - Keep one-off exploration in `notebooks`.
 - Keep downloaded ADT data on D drive, not in the WSL repo.
