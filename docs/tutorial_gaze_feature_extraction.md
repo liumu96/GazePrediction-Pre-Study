@@ -8,7 +8,7 @@
 - 怎么判断一条 gaze sample 是否可用？
 - 怎么投影到 RGB 图像？
 - 怎么转成 Scene frame 下的 3D gaze ray？
-- 怎么快速生成可检查的 CSV 和可视化？
+- 怎么快速生成可检查的 CSV、quality summary 和按需可视化？
 
 当前实现对应：
 
@@ -68,10 +68,10 @@ python scripts/extract_gaze_samples.py \
   例如 `--start-offset-s 30 --end-offset-s 32` 表示从当前 sequence 可用时间轴
   的第 30 秒到第 32 秒。
 - `--stride`：RGB frame timestamp 的步长。RGB 约 30 fps 时，
-  `--stride 30` 约等于 1 Hz；`--stride 300` 约等于 10 秒一个点。
-- 如果没有指定 `--end-index` 或 `--end-offset-s`，脚本默认只取 30 帧，避免
-  意外处理太长的序列。
-- `--no-plots`：只输出 CSV，不保存 RGB frames、overlay frames 和 manifest。
+  默认 `--stride 1`，会保留每个可用 RGB timestamp；`--stride 30` 约等于
+  1 Hz；`--stride 300` 约等于 10 秒一个点。
+- 如果没有指定 `--end-index` 或 `--end-offset-s`，脚本会从 `start-index`
+  一直处理到当前 sequence 可用 RGB 时间轴的末尾。
 - 默认输出 upright RGB 图像和对应的 upright gaze projection；如果需要保留
   Aria 传感器原始方向，使用 `--raw-image-orientation`。
 
@@ -84,17 +84,17 @@ image_orientation: upright
 samples: 5 gaze_valid=5 projection_in_image=5 ok=5
 selected_timestamps_ns: 267877629193250..267877762503625 duration_s=0.133
 csv: outputs/reports/Apartment_release_decoration_skeleton_seq131_M1292_gaze_samples.csv
-figures: outputs/figures/gaze/Apartment_release_decoration_skeleton_seq131_M1292
+summary_json: outputs/reports/Apartment_release_decoration_skeleton_seq131_M1292_gaze_summary.json
 ```
 
 `outputs/` 下的生成内容会被 git 忽略。
 
 ## Re-visualize Existing CSV / 复用已有 CSV 重新可视化
 
-如果已经用 `extract_gaze_samples.py` 生成过 CSV、RGB frames、overlay frames
-和 `manifest.json`，后面只想调整可视化参数，使用
-`scripts/visualize_gaze_outputs.py`。它只读取已有中间结果，不再打开 ADT
-provider，也不重新逐帧查询 gaze/pose/RGB。
+如果已经用 `extract_gaze_samples.py` 生成过 CSV，后面想围绕一个 event/window
+生成 scanpath、scene rays、overlay frames 和 overlay video，使用
+`scripts/visualize_gaze_outputs.py`。它会先读取已有 CSV，再只为当前窗口打开
+ADT provider 查询所需的 RGB image。
 
 ```bash
 python scripts/visualize_gaze_outputs.py \
@@ -108,7 +108,7 @@ python scripts/visualize_gaze_outputs.py \
 常用参数：
 
 - `--start-row/--end-row`：从 CSV 中选一个行区间作为 event/window。
-- `--stride`：统一抽稀 scanpath、scene_rays 和 overlay video。
+- `--stride`：统一抽稀 scanpath、scene_rays、overlay frames 和 overlay video。
 - `--run-name`：把这次可视化写入单独子目录，方便比较不同参数。
 
 ## What The Script Does / 脚本流程
@@ -136,13 +136,9 @@ gt_provider.raw_data_provider_ptr()
 
 4. 计算 gaze validity、projection、Scene-frame ray。
 
-5. 写出 CSV、完整 RGB frames、完整 overlay frames 和 `manifest.json`。
-   后续 scanpath、scene_rays 和 overlay video 由
-   `scripts/visualize_gaze_outputs.py` 从这些中间结果生成。
-
-- RGB frames：`rgb/rgb_*.png`
-- RGB gaze overlay frames：`overlays/overlay_*.png`
-- Manifest：`manifest.json`
+5. 写出 CSV 和轻量 `gaze_summary.json`。
+6. 需要图片或视频时，再用 `scripts/visualize_gaze_outputs.py` 读取 CSV，
+   只对当前选中窗口生成 scene_rays、scanpath、overlay frames 和 overlay video。
 
 ## Gaze Fields / Gaze 字段
 
@@ -165,7 +161,8 @@ pitch_high_rads_cpf
 
 - `tracking_timestamp_us`：device capture time，微秒；代码里转成 ns。
 - `yaw_rads_cpf`、`pitch_rads_cpf`：CPF frame 下的 gaze angle。
-- `depth_m`：CPF forward direction 上的深度；`<= 0` 不能构造 3D gaze point。
+- `depth_m`：从 CPF origin 沿 gaze ray 前进的距离，不是 CPF 的 `z` 坐标；
+  `<= 0` 不能构造 3D gaze point。
 - `yaw_low/high`、`pitch_low/high`：confidence interval。
 
 ## Coordinate Frames / 坐标系
@@ -178,19 +175,41 @@ gaze 原始角度在 Central Pupil Frame (CPF) 下：
 CPF 中的 3D gaze point：
 
 ```python
-gaze_point_cpf = np.array(
-    [tan(eye_gaze.yaw), tan(eye_gaze.pitch), 1.0],
-    dtype=np.float64,
-) * eye_gaze.depth
+from projectaria_tools.core import mps
+
+gaze_point_cpf = mps.get_eyegaze_point_at_depth(
+    eye_gaze.yaw,
+    eye_gaze.pitch,
+    eye_gaze.depth,
+)
+```
+
+这里要特别注意：`depth_m` 采用的是官方 helper 的语义，表示“沿 gaze ray 的
+距离”。因此 `gaze_point_cpf` 与 `gaze_dir_cpf_unit * depth_m` 同方向，但不等于
+简单的 `[tan(yaw), tan(pitch), 1] * depth_m`。
+
+CPF 下的 unit gaze direction：
+
+```python
+gaze_dir_cpf_unit = normalize(
+    np.array([tan(eye_gaze.yaw), tan(eye_gaze.pitch), 1.0], dtype=np.float64)
+)
 ```
 
 投影到 RGB 时使用：
 
 ```text
-T_camera_cpf = inverse(T_device_camera) @ T_device_cpf
-gaze_point_camera = T_camera_cpf @ gaze_point_cpf
-pixel = camera_calibration.project(gaze_point_camera)
+pixel = mps.utils.get_gaze_vector_reprojection(
+    eye_gaze=eye_gaze,
+    stream_id_label=camera_calibration.get_label(),
+    device_calibration=device_calibration,
+    camera_calibration=camera_calibration,
+    depth_m=eye_gaze.depth,
+    make_upright=make_upright,
+)
 ```
+
+当前仓库直接调用官方 helper，不再自己维护一份本地复刻的投影链。
 
 转成 Scene frame 时使用：
 
@@ -198,7 +217,19 @@ pixel = camera_calibration.project(gaze_point_camera)
 T_scene_cpf = T_scene_device @ T_device_cpf
 gaze_origin_scene = T_scene_cpf @ [0, 0, 0]
 gaze_point_scene = T_scene_cpf @ gaze_point_cpf
+gaze_dir_scene_unit = normalize((T_scene_cpf @ gaze_dir_cpf_unit) - gaze_origin_scene)
 ```
+
+和 HAGI / HAGI++ 的关系：
+
+- HAGI / HAGI++ 论文把 gaze 表示成 `(pitch, yaw)` 序列，并把 head movement
+  表示成以 eye tracker 为参考的相对运动，而不是 world-frame gaze。
+- HAGI++ 明确写到 gaze 和 head 都是在 `tracker-centric coordinate system`
+  下表示；因此这类模型学习的是 `eye-in-head / eye-in-tracker` 的局部 gaze，
+  再结合 head pose 才能还原成 world/scene 下的 gaze ray。
+- 对当前 ADT CSV 来说，`yaw_rad/pitch_rad/depth_m` 更具体地说是在 `CPF`
+  下；CPF 是刚性附着在眼镜/头部上的局部坐标系，所以从建模语义上属于
+  tracker-centric / head-centric，而不是 world-centric。
 
 注意：本项目按 `adt` 环境中的 `projectaria-tools 2.x` API 编写。官方文档和
 本地 `external/projectaria_tools` 源码使用
@@ -255,15 +286,44 @@ outputs/reports/<sequence_id>_gaze_samples.csv
 
 - `query_timestamp_ns`
 - `yaw_rad`, `pitch_rad`, `depth_m`
+- `gaze_dir_cpf_unit_x/y/z`
 - `gaze_u_px`, `gaze_v_px`
 - `image_width_px`, `image_height_px`
 - `gaze_origin_scene_x_m/y_m/z_m`
 - `gaze_point_scene_x_m/y_m/z_m`
+- `gaze_dir_scene_unit_x/y/z`
 - `pose_quality_score`
 - `validation_notes`
 
 如果 `projection_in_image=True`，`gaze_u_px/gaze_v_px` 可以直接用于对应帧的
 RGB overlay。若要做 3D 分析，使用 Scene-frame origin/point 构造 ray。
+
+轻量 summary JSON 默认写到：
+
+```text
+outputs/reports/<sequence_id>_gaze_summary.json
+```
+
+其中会包含：
+
+- `gaze_valid_ratio`
+- `projection_in_image_ratio`
+- `pose_valid_ratio`
+- `depth_available_ratio`
+- `validation_note_counts`
+- `gaze_dt_ms` / `pose_dt_ms` / `depth_m` 的 count/min/max/mean
+- `field_coordinate_frames`：当前 CSV 关键字段所在坐标系，例如
+  `yaw_rad/pitch_rad/depth_m` 和 `gaze_dir_cpf_unit_*` 在 CPF 下，
+  `gaze_u_px/gaze_v_px` 在 RGB image plane，
+  `gaze_origin_scene_* / gaze_point_scene_* / gaze_dir_scene_unit_*`
+  在 ADT Scene frame 下
+- `field_definitions`：关键字段的语义说明，尤其是 `depth_m` 表示“沿 gaze ray 的
+  距离”，不是 CPF 的 `z` 坐标
+- `source_counts`：`eyegaze.csv` 行数、原始 RGB timestamp 数、annotation
+  过滤后的 RGB 数、offset 过滤后的 RGB 数、最终 selected RGB 数
+- `source_time_ranges_ns`：上述各阶段的时间范围，以及 provider annotation 的
+  `start/end`，用于解释为什么某个 sequence 会出现
+  `Loaded #EyeGazes != samples`
 
 ## Visualization / 可视化解释
 
@@ -284,7 +344,7 @@ RGB overlay：
 
 Reference-frame scanpath：
 
-- reference frame 默认是当前选中窗口的最后一个 RGB frame。
+- reference frame 默认是当前选中可视化窗口的最后一个 RGB frame。
 - 每个 sample 先使用 `gaze_point_scene_*` 表示 Scene/world frame 中的 3D
   gaze point，再被统一投影到 reference frame 的 RGB camera 上。
 - `gaze_reference_frame_scanpath_overlay.png` 把 scanpath 画在 reference RGB
@@ -310,10 +370,13 @@ Reference-frame scanpath：
 1. 用同一脚本多跑几个 sequence，统计 `validation_notes` 分布。
 2. 增加 `scripts/check_gaze_quality.py`，批量输出每个 sequence 的
    valid ratio、projection ratio、depth coverage、dt distribution。
-3. 写 `notebooks/01_gaze_feature_extraction.ipynb`，读取 CSV、manifest 和
-   saved frames，做交互式检查。
+3. 写 `notebooks/01_gaze_feature_extraction.ipynb`，读取 CSV、summary 和按需
+   生成的 figures，做交互式检查。
 4. 为 fixation 分析设计真正的 scanpath 表示：先把 gaze ray 投到稳定参考系，
    例如 Scene frame 中的墙面/桌面、object mesh、3D bounding box，或某个物体的
    local coordinate frame，再在该参考系上连接 fixation/gaze points。
-5. 扩展 pose interpolation，再把 skeleton/object boxes 叠加到同一
+5. 在 event analysis 阶段补充 device/CPF origin 的上下文图，例如
+   `origin_xyz_vs_time`、`origin_xy_topdown`、`origin_xz_sideview`，
+   用来区分 gaze 变化和 ego-motion 的贡献；这类图先不作为当前默认输出。
+6. 扩展 pose interpolation，再把 skeleton/object boxes 叠加到同一
    Scene-frame visualization。

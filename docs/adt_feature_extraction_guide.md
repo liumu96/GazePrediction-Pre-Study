@@ -488,8 +488,8 @@ viewer_projects_adt --sequence_path /mnt/d/Pose2Gaze-ADT/<sequence_id>
 本仓库的本地可视化目标：
 
 - gaze CSV 和小型 JSON/CSV summaries 放 `outputs/reports/`
-- 可复用 RGB frames、overlay frames、scanpath、scene_rays 等可视化输出放
-  `outputs/figures/`
+- 围绕选中 event/window 按需生成的 scanpath、scene_rays、overlay frames 和
+  overlay video 放 `outputs/figures/`
 - 大型 Rerun `.rrd` 文件放 repo 外或 ignored outputs
 
 ## First Local Implementation Target / 第一个本地实现目标

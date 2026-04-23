@@ -123,6 +123,7 @@ ADT 探索路线记录在：
 - [docs/adt_exploration_plan.md](docs/adt_exploration_plan.md)
 - [docs/adt_feature_extraction_guide.md](docs/adt_feature_extraction_guide.md)
 - [docs/tutorial_gaze_feature_extraction.md](docs/tutorial_gaze_feature_extraction.md)
+- [docs/sparsegaze_modeling_notes.md](docs/sparsegaze_modeling_notes.md)
 
 这些文档以中文说明为主，同时保留官方 API、字段名和坐标系英文术语。
 当 scripts、notebooks、APIs 或假设发生变化时，及时同步更新。
@@ -133,12 +134,12 @@ ADT 探索路线记录在：
 python scripts/extract_gaze_samples.py <sequence_id> --start-index 900 --end-index 905 --stride 1
 ```
 
-它会导出完整 gaze CSV、RGB frames、RGB overlay frames 和 `manifest.json`。
-调试局部片段时可以用 `--start-index/--end-index` 选帧区间，也可以用
-`--start-offset-s/--end-offset-s` 按 sequence 内相对秒数选时间区间。
-如果已有 CSV 和 manifest，只想调整可视化参数，使用
-`scripts/visualize_gaze_outputs.py --stride <N>`，避免重新逐帧提取 gaze 或打开
-ADT provider。
+它会导出 `gaze_samples.csv` 和一个轻量 `gaze_summary.json`，先把核心数据和质量
+统计保存下来。调试局部片段时可以用 `--start-index/--end-index` 选帧区间，也可以
+用 `--start-offset-s/--end-offset-s` 按 sequence 内相对秒数选时间区间。
+如果后面想围绕某个 event/window 生成 scene rays、scanpath、overlay frames
+和 overlay video，再运行 `scripts/visualize_gaze_outputs.py`。这样图片和视频
+就作为后处理，而不是默认主流程。
 下一步是把这个 workflow 扩展成批量 gaze quality report，然后再做 pose、
 skeleton 和 object feature extraction。
 

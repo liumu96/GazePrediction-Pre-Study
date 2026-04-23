@@ -11,11 +11,11 @@
   id resolved under `ADT_DATA_ROOT`。用于快速检查一个 ADT sequence 的文件
   完整性和基本统计。
 - `extract_gaze_samples.py`: extract gaze at selected RGB timestamps, validate
-  it, project it to RGB/reference frame, and save reusable CSV/RGB/overlay
-  assets。用于先把 gaze 的提取、validity、投影和可视化中间结果跑通。
+  it, and write a gaze CSV plus a lightweight quality summary JSON。用于先把
+  gaze 的核心数据和质量指标保存下来。
 - `visualize_gaze_outputs.py`: regenerate visualizations from an existing gaze
-  CSV/manifest/saved frames without re-extracting gaze。用于在已有中间结果上
-  调整 row window、统一 `--stride`、scanpath、scene_rays 和 overlay video。
+  CSV and a selected row window。它会读取已有 CSV，再只为当前窗口打开 ADT
+  provider 生成 scanpath、scene_rays、overlay frames 和 overlay video。
 
 示例：
 
