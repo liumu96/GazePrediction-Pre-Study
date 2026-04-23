@@ -123,7 +123,9 @@ ADT 探索路线记录在：
 - [docs/adt_exploration_plan.md](docs/adt_exploration_plan.md)
 - [docs/adt_feature_extraction_guide.md](docs/adt_feature_extraction_guide.md)
 - [docs/tutorial_gaze_feature_extraction.md](docs/tutorial_gaze_feature_extraction.md)
+- [docs/gaze_quality_report_notes.md](docs/gaze_quality_report_notes.md)
 - [docs/sparsegaze_modeling_notes.md](docs/sparsegaze_modeling_notes.md)
+- [docs/gaze_event_analysis_notes.md](docs/gaze_event_analysis_notes.md)
 
 这些文档以中文说明为主，同时保留官方 API、字段名和坐标系英文术语。
 当 scripts、notebooks、APIs 或假设发生变化时，及时同步更新。
@@ -150,6 +152,19 @@ python scripts/batch_extract_gaze_samples.py
 它会为每个 sequence 生成一份 `gaze_samples.csv` 和 `gaze_summary.json`，
 同时在 `outputs/reports/` 下写一份批量总表，方便后续再做 quality report、
 pose、skeleton 和 object feature extraction。
+
+如果批量提取已经完成，只想汇总这些 summary 的 sequence-level 质量：
+
+```bash
+python scripts/check_gaze_quality.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+```
+
+它只读取已有的 `*_gaze_summary.json`，输出：
+
+- `gaze_quality_report.csv`
+- `gaze_quality_report.json`
+
+不会重新打开 ADT provider，也不会生成可视化。
 
 ## Working Conventions
 

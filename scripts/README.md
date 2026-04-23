@@ -16,6 +16,9 @@
 - `batch_extract_gaze_samples.py`: batch-run the same gaze-only extraction
   workflow across multiple sequences。用于批量生成每个 sequence 的
   `gaze_samples.csv`、`gaze_summary.json` 和一个批量总表。
+- `check_gaze_quality.py`: summarize the extracted `gaze_summary.json` files
+  into one flat CSV and one aggregate JSON。用于在不重新打开 provider 的前提下，
+  做 sequence-level gaze 质量体检。
 - `visualize_gaze_outputs.py`: regenerate visualizations from an existing gaze
   CSV and a selected row window。它会读取已有 CSV，再只为当前窗口打开 ADT
   provider 生成 scanpath、scene_rays、overlay frames 和 overlay video。
@@ -44,6 +47,12 @@ python scripts/batch_extract_gaze_samples.py
 python scripts/batch_extract_gaze_samples.py <sequence_id_1> <sequence_id_2> --stride 30
 ```
 
+如果批量提取已经完成，只想汇总 sequence 质量：
+
+```bash
+python scripts/check_gaze_quality.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+```
+
 如果已经有 CSV，只想重新调可视化参数：
 
 ```bash
@@ -53,14 +62,11 @@ python scripts/visualize_gaze_outputs.py <sequence_id> \
   --run-name stride_10
 ```
 
-计划脚本：
+后续计划脚本：
 
 - `check_sequence_alignment.py`: summarize timestamp alignment between gaze,
   skeleton, trajectory, and object annotations。用于检查不同 stream 的
   `dt_ns()` 和对齐质量。
-- `check_gaze_quality.py`: batch summarize gaze validity, projection coverage,
-  depth coverage, and timestamp deltas across sequences。用于把当前 tutorial
-变成批量质量报告。
 - `build_feature_table.py`: build compact downstream analysis/model tables once
   feature extraction and alignment are understood。在 feature extraction 和
   alignment 策略清楚之后再做。

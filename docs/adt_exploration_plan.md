@@ -65,6 +65,7 @@ camera projection、Scene transform 和可视化。
 - `scripts/extract_gaze_samples.py`：已实现 gaze CSV 和轻量质量 summary 导出。
 - `scripts/batch_extract_gaze_samples.py`：已实现批量 gaze-only 导出，不生成
   可视化。
+- `scripts/check_gaze_quality.py`：已实现读取已有 summary 的批量质量汇总。
 - `scripts/visualize_gaze_outputs.py`：已实现从已有 CSV 和选中窗口生成
   scanpath、scene_rays、overlay frames 和 overlay video。
 - `docs/tutorial_gaze_feature_extraction.md`：已实现中文 tutorial 笔记。
@@ -179,17 +180,43 @@ Alignment rules：
 - 小型 reports 放 `outputs/reports/`
 - 大型 derived data 放 repo 外，例如 D 盘
 
+## Phase 6: Gaze Event Analysis / gaze event 分析
+
+目标：在整条 sequence 上先做 event feature computation 和 event detection，
+再围绕检测结果做 fixation / transition 复查和下游分析。
+
+主文档：
+
+- `docs/gaze_event_analysis_notes.md`
+- `docs/gaze_quality_report_notes.md`
+
+当前原则：
+
+- event detection 先在全 sequence 上做，而不是先人工选片段
+- 第一版主空间优先用 CPF / local gaze
+- head motion 先单独作为 context feature
+- 30 Hz 先做 `fixation_candidate` / `transition_candidate`
+- 阈值先全部参数化，等分布统计后再收敛
+
+计划产物：
+
+- `scripts/compute_gaze_event_features.py`
+- `scripts/detect_gaze_events.py`
+- `notebooks/04_gaze_event_analysis.ipynb`
+
 ## Immediate Next Step / 下一步
 
 gaze-first 路径已经先跑通。当前更合理的顺序是：
 
 1. 用 `scripts/batch_extract_gaze_samples.py` 先把全部 sequence 的 gaze CSV 和
    轻量 summary 跑出来，不生成可视化。
-2. 再新增 `scripts/check_gaze_quality.py`：读取这些 summary，统计
+2. 再运行 `scripts/check_gaze_quality.py`：读取这些 summary，统计
    `validation_notes`、projection ratio、depth coverage、`gaze_dt_ns`
    分布和 pose quality。
 3. 创建 `notebooks/01_gaze_feature_extraction.ipynb`：读取已有 CSV、summary
    和按需生成的 figures，交互式检查 gaze projection、scanpath 和
    Scene-frame rays。
-4. 如果 gaze quality report 稳定，再进入 Phase 3 的 pose、skeleton、
-   object feature extraction。
+4. 基于 `docs/gaze_event_analysis_notes.md` 实现整条 sequence 的 event
+   feature computation 和 event detection。
+5. 如果 gaze quality report 和 event policy 都稳定，再进入 Phase 3 的 pose、
+   skeleton、object feature extraction。

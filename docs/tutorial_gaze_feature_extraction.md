@@ -116,6 +116,35 @@ python scripts/batch_extract_gaze_samples.py \
   --stride 30
 ```
 
+如果批量提取已经完成，下一步可以只读取这些 `gaze_summary.json` 做质量汇总：
+
+```bash
+python scripts/check_gaze_quality.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+```
+
+它会输出：
+
+- `gaze_quality_report.csv`
+- `gaze_quality_report.json`
+
+这一步不会重新打开 provider，也不会生成图片或视频。
+
+这次已经跑过一轮完整质量检查，对应的结论文档见：
+
+- `docs/gaze_quality_report_notes.md`
+
+如果后面要进入 fixation / transition / event detection，先看：
+
+- `docs/gaze_event_analysis_notes.md`
+
+那份文档记录了：
+
+- 为什么 event detection 应该先在整条 sequence 上做
+- `yaw/pitch` dispersion 和 angular velocity 分别对应 `I-DT` / `I-VT`
+- 为什么第一版主空间建议先用 CPF / local gaze
+- 为什么 head motion 先作为 context，而不是直接混进 gaze event 判据
+- 为什么 30 Hz 下更适合先做 `fixation_candidate` / `transition_candidate`
+
 ## Re-visualize Existing CSV / 复用已有 CSV 重新可视化
 
 如果已经用 `extract_gaze_samples.py` 生成过 CSV，后面想围绕一个 event/window
@@ -383,7 +412,8 @@ Reference-frame scanpath：
 
 ## Current Limitations / 当前限制
 
-- 目前只做 gaze-first extraction 和离线可视化，还没有进入批量质量报告。
+- 目前 gaze-first extraction、批量提取和批量质量汇总都已经有脚本入口；
+  但还没有进入 event / fixation / object-aware analysis。
 - pose 使用 nearest timestamp，还没有实现 interpolation comparison。
 - reference-frame scanpath 适合短时间、受控事件窗口的可视化对比，但还不是
   最终 fixation feature；正式分析仍应考虑 Scene/object/mesh 等稳定参考系。
@@ -394,9 +424,9 @@ Reference-frame scanpath：
 
 建议按这个顺序继续：
 
-1. 用同一脚本多跑几个 sequence，统计 `validation_notes` 分布。
-2. 增加 `scripts/check_gaze_quality.py`，批量输出每个 sequence 的
-   valid ratio、projection ratio、depth coverage、dt distribution。
+1. 先运行 `scripts/check_gaze_quality.py`，筛出“好 / 中 / 差”三类 sequence。
+2. 选择这三类 sequence 各一个短窗口做可视化复查，确认 sequence-level
+   quality summary 和实际 overlay/scanpath/scene-ray 是否一致。
 3. 写 `notebooks/01_gaze_feature_extraction.ipynb`，读取 CSV、summary 和按需
    生成的 figures，做交互式检查。
 4. 为 fixation 分析设计真正的 scanpath 表示：先把 gaze ray 投到稳定参考系，
