@@ -140,8 +140,16 @@ python scripts/extract_gaze_samples.py <sequence_id> --start-index 900 --end-ind
 如果后面想围绕某个 event/window 生成 scene rays、scanpath、overlay frames
 和 overlay video，再运行 `scripts/visualize_gaze_outputs.py`。这样图片和视频
 就作为后处理，而不是默认主流程。
-下一步是把这个 workflow 扩展成批量 gaze quality report，然后再做 pose、
-skeleton 和 object feature extraction。
+
+如果下一步想直接批量处理所有 sequence 的 gaze 数据，不做可视化：
+
+```bash
+python scripts/batch_extract_gaze_samples.py
+```
+
+它会为每个 sequence 生成一份 `gaze_samples.csv` 和 `gaze_summary.json`，
+同时在 `outputs/reports/` 下写一份批量总表，方便后续再做 quality report、
+pose、skeleton 和 object feature extraction。
 
 ## Working Conventions
 

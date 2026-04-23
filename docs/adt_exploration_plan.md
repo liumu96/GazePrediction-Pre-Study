@@ -63,6 +63,8 @@ camera projection、Scene transform 和可视化。
 - `src/adt_sandbox/gaze.py`：已实现 gaze conversion、validation、
   RGB projection、Scene-frame ray helpers。
 - `scripts/extract_gaze_samples.py`：已实现 gaze CSV 和轻量质量 summary 导出。
+- `scripts/batch_extract_gaze_samples.py`：已实现批量 gaze-only 导出，不生成
+  可视化。
 - `scripts/visualize_gaze_outputs.py`：已实现从已有 CSV 和选中窗口生成
   scanpath、scene_rays、overlay frames 和 overlay video。
 - `docs/tutorial_gaze_feature_extraction.md`：已实现中文 tutorial 笔记。
@@ -179,14 +181,15 @@ Alignment rules：
 
 ## Immediate Next Step / 下一步
 
-gaze-first 路径已经先跑通。当前下一步是把单 sequence tutorial 扩展成
-批量质量检查：
+gaze-first 路径已经先跑通。当前更合理的顺序是：
 
-1. 新增 `scripts/check_gaze_quality.py`：遍历多个 sequences，统计
+1. 用 `scripts/batch_extract_gaze_samples.py` 先把全部 sequence 的 gaze CSV 和
+   轻量 summary 跑出来，不生成可视化。
+2. 再新增 `scripts/check_gaze_quality.py`：读取这些 summary，统计
    `validation_notes`、projection ratio、depth coverage、`gaze_dt_ns`
    分布和 pose quality。
-2. 创建 `notebooks/01_gaze_feature_extraction.ipynb`：读取 tutorial 输出的
-   CSV、summary 和按需生成的 figures，交互式检查 gaze projection、scanpath 和
+3. 创建 `notebooks/01_gaze_feature_extraction.ipynb`：读取已有 CSV、summary
+   和按需生成的 figures，交互式检查 gaze projection、scanpath 和
    Scene-frame rays。
-3. 如果 gaze quality report 稳定，再进入 Phase 3 的 pose、skeleton、
+4. 如果 gaze quality report 稳定，再进入 Phase 3 的 pose、skeleton、
    object feature extraction。

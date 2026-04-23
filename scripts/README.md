@@ -13,6 +13,9 @@
 - `extract_gaze_samples.py`: extract gaze at selected RGB timestamps, validate
   it, and write a gaze CSV plus a lightweight quality summary JSON。用于先把
   gaze 的核心数据和质量指标保存下来。
+- `batch_extract_gaze_samples.py`: batch-run the same gaze-only extraction
+  workflow across multiple sequences。用于批量生成每个 sequence 的
+  `gaze_samples.csv`、`gaze_summary.json` 和一个批量总表。
 - `visualize_gaze_outputs.py`: regenerate visualizations from an existing gaze
   CSV and a selected row window。它会读取已有 CSV，再只为当前窗口打开 ADT
   provider 生成 scanpath、scene_rays、overlay frames 和 overlay video。
@@ -27,6 +30,18 @@ python scripts/extract_gaze_samples.py <sequence_id> --start-index 900 --end-ind
 
 ```bash
 python scripts/extract_gaze_samples.py <sequence_id> --start-offset-s 30 --end-offset-s 32 --stride 1
+```
+
+批量处理所有本地 sequence，只提取 gaze 数据：
+
+```bash
+python scripts/batch_extract_gaze_samples.py
+```
+
+也可以只处理显式给出的 sequence 列表：
+
+```bash
+python scripts/batch_extract_gaze_samples.py <sequence_id_1> <sequence_id_2> --stride 30
 ```
 
 如果已经有 CSV，只想重新调可视化参数：
@@ -45,7 +60,7 @@ python scripts/visualize_gaze_outputs.py <sequence_id> \
   `dt_ns()` 和对齐质量。
 - `check_gaze_quality.py`: batch summarize gaze validity, projection coverage,
   depth coverage, and timestamp deltas across sequences。用于把当前 tutorial
-  变成批量质量报告。
+变成批量质量报告。
 - `build_feature_table.py`: build compact downstream analysis/model tables once
   feature extraction and alignment are understood。在 feature extraction 和
   alignment 策略清楚之后再做。

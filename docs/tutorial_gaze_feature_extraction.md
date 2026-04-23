@@ -89,6 +89,33 @@ summary_json: outputs/reports/Apartment_release_decoration_skeleton_seq131_M1292
 
 `outputs/` 下的生成内容会被 git 忽略。
 
+## Batch Gaze Extraction / 批量提取 gaze
+
+如果当前目标是先把全部 sequence 的 gaze 数据批量落盘，而不是立刻做可视化，
+直接运行：
+
+```bash
+python scripts/batch_extract_gaze_samples.py
+```
+
+这个脚本会：
+
+- 扫描 `ADT_DATA_ROOT` 下的全部本地 ADT sequence
+- 对每个 sequence 生成一份 `gaze_samples.csv`
+- 为每个 sequence 生成一份配套 `gaze_summary.json`
+- 额外写一份批量总表：
+  - `outputs/reports/batch_gaze_extract_summary.csv`
+  - `outputs/reports/batch_gaze_extract_summary.json`
+
+如果只想处理一部分 sequence，也可以显式传入：
+
+```bash
+python scripts/batch_extract_gaze_samples.py \
+  Apartment_release_decoration_skeleton_seq131_M1292 \
+  Apartment_release_bedroom_seq114_M1292 \
+  --stride 30
+```
+
 ## Re-visualize Existing CSV / 复用已有 CSV 重新可视化
 
 如果已经用 `extract_gaze_samples.py` 生成过 CSV，后面想围绕一个 event/window
