@@ -6,6 +6,9 @@
 可复用代码应放在 `src/adt_sandbox/`，这里保留简洁 API map、坐标系说明、
 validity checks 和可视化思路。
 
+已经跑通的 gaze-first 实操笔记见
+`docs/tutorial_gaze_feature_extraction.md`。
+
 ## Official References Checked / 已检查的官方参考
 
 本指南基于本地 `external/projectaria_tools` 里的官方文档和源码：
@@ -36,6 +39,28 @@ from projectaria_tools.projects.adt import (
 paths_provider = AriaDigitalTwinDataPathsProvider(sequence_path)
 data_paths = paths_provider.get_datapaths(skeleton_flag=True)
 gt_provider = AriaDigitalTwinDataProvider(data_paths)
+```
+
+本仓库的推荐入口是：
+
+```python
+from adt_sandbox.providers import create_adt_providers
+
+providers = create_adt_providers("Apartment_release_decoration_skeleton_seq131_M1292")
+gt_provider = providers.gt_provider
+print(providers.provider_mode)  # official_adt
+```
+
+`create_adt_providers()` 使用 `AriaDigitalTwinDataPathsProvider` 和
+`AriaDigitalTwinDataProvider` 创建官方 provider。tutorial 主要用这些 API：
+
+```python
+gt_provider.get_aria_device_capture_timestamps_ns(rgb_stream_id)
+gt_provider.get_aria_image_by_timestamp_ns(timestamp_ns, rgb_stream_id)
+gt_provider.get_aria_camera_calibration(rgb_stream_id)
+gt_provider.get_eyegaze_by_timestamp_ns(timestamp_ns)
+gt_provider.get_aria_3d_pose_by_timestamp_ns(timestamp_ns)
+gt_provider.raw_data_provider_ptr()
 ```
 
 常用 metadata / availability checks：
@@ -131,6 +156,31 @@ gaze_point_cpf = mps.get_eyegaze_point_at_depth(
 
 ### Projection To RGB / 投影到 RGB 图像
 
+本仓库当前使用 `src/adt_sandbox/gaze.py` 中的手动投影 helper：
+
+```python
+from adt_sandbox.gaze import extract_gaze_sample
+
+sample = extract_gaze_sample(gt_provider, timestamp_ns)
+print(sample.gaze_u_px, sample.gaze_v_px, sample.projection_in_image)
+```
+
+默认 `make_upright=True`，输出坐标对应顺时针旋转 90 度后的 upright RGB 图像；
+如果要和原始 VRS 图像方向对齐，显式传 `make_upright=False`。
+
+核心计算：
+
+```python
+T_camera_cpf = inverse(T_device_camera) @ T_device_cpf
+gaze_point_camera = T_camera_cpf @ gaze_point_cpf
+pixel = camera_calibration.project(gaze_point_camera)
+```
+
+官方文档里也有 `get_gaze_vector_reprojection` helper。`adt` 环境中的
+`projectaria-tools 2.x` 可以正常 import 这个 helper。当前 tutorial 仍保留
+显式投影逻辑，是为了把 `T_camera_cpf`、CPF point 和 camera projection 这些
+中间步骤暴露出来，方便学习和 debug；后续可以用官方 helper 对照验证结果：
+
 ```python
 from projectaria_tools.core.stream_id import StreamId
 from projectaria_tools.core.mps.utils import get_gaze_vector_reprojection
@@ -163,6 +213,12 @@ gaze_point_scene = transform_scene_cpf @ gaze_point_cpf
 这里 `transform_scene_device` 是 `T_scene_device`，将 Device frame 中的点
 变换到 Scene frame。`transform_device_cpf` 是 `T_device_cpf`。
 
+官方 coordinate convention 文档和 ADT viewer 源码使用 `@` 组合 SE3 transforms。
+本仓库按项目 `adt` 环境中的 `projectaria-tools 2.x` API 编写，也直接使用
+`SE3 @ SE3` 执行上述矩阵逻辑。运行脚本前应确认 Python 来自
+`/home/liumu/miniconda3/envs/adt/bin/python`，不要使用 base 环境里的旧版
+`projectaria-tools`。
+
 ### Validity Checks / 有效性检查
 
 - `eye_gaze_with_dt.is_valid()`
@@ -177,7 +233,13 @@ gaze_point_scene = transform_scene_cpf @ gaze_point_cpf
 ### Visualizations / 可视化
 
 - 2D gaze point overlay：在 RGB frame 上画 gaze point
-- 2D scanpath：短时间窗口内用颜色或编号连接 gaze points
+- Reference-frame scanpath：把短事件窗口内的 Scene-frame gaze points 统一
+  重投影到最后一个选中 RGB frame，输出 overlay 和 clean zoom 两种 view，
+  适合做 event analysis 的视觉对比
+- Overlay video：将抽稀后的 RGB overlay frames 合成视频，用于和
+  Scene-frame rays 中的用户移动趋势对照
+- Fixation scanpath：将 gaze ray 投到稳定参考系，例如 Scene plane、object mesh
+  或 object-local frame，再在该参考系上连接 fixation/gaze points
 - 3D gaze ray：在 Scene frame 中画从 CPF origin 出发的 ray
 - Rerun timeline：同时看 RGB、gaze projection、device pose、skeleton、
   object boxes
@@ -425,13 +487,14 @@ viewer_projects_adt --sequence_path /mnt/d/Pose2Gaze-ADT/<sequence_id>
 
 本仓库的本地可视化目标：
 
-- 小型 PNG debug overlays 放 `outputs/figures/`
-- 小型 JSON/CSV summaries 放 `outputs/reports/`
+- gaze CSV 和小型 JSON/CSV summaries 放 `outputs/reports/`
+- 可复用 RGB frames、overlay frames、scanpath、scene_rays 等可视化输出放
+  `outputs/figures/`
 - 大型 Rerun `.rrd` 文件放 repo 外或 ignored outputs
 
 ## First Local Implementation Target / 第一个本地实现目标
 
-先从 gaze 开始，因为它覆盖了最容易踩坑的部分：
+已经先从 gaze 开始，因为它覆盖了最容易踩坑的部分：
 
 - provider loading
 - timestamp query 和 `dt_ns()`
@@ -440,9 +503,15 @@ viewer_projects_adt --sequence_path /mnt/d/Pose2Gaze-ADT/<sequence_id>
 - Scene-frame transform
 - 2D 与 3D visualization
 
-下一步文件：
+已实现文件：
 
 - `src/adt_sandbox/providers.py`
 - `src/adt_sandbox/gaze.py`
 - `scripts/extract_gaze_samples.py`
+- `scripts/visualize_gaze_outputs.py`
+- `docs/tutorial_gaze_feature_extraction.md`
+
+下一步文件：
+
+- `scripts/check_gaze_quality.py`
 - `notebooks/01_gaze_feature_extraction.ipynb`

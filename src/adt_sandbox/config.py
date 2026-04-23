@@ -1,4 +1,10 @@
-"""Project-local configuration helpers."""
+"""Project-local configuration helpers.
+
+zh-CN:
+这里集中处理本项目的轻量配置：从仓库根目录 `.env` 读取环境变量，并解析
+`ADT_DATA_ROOT`。脚本会先调用 `load_dotenv()`，这样通常不需要每次手动
+`export ADT_DATA_ROOT=...`。
+"""
 
 from __future__ import annotations
 

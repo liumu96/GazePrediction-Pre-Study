@@ -45,9 +45,14 @@ This installs the sandbox package plus the dependencies declared in
 Quick check:
 
 ```bash
+which python
 python -c "import projectaria_tools; print(projectaria_tools.__file__)"
 python -m py_compile src/adt_sandbox/adt_files.py scripts/inspect_adt_sequence.py
 ```
+
+`which python` should point to `/home/liumu/miniconda3/envs/adt/bin/python`.
+If it points to `/home/liumu/miniconda3/bin/python`, the terminal is still using
+the base environment.
 
 If you need to inspect the upstream Project Aria source, keep that checkout
 outside this repo or under ignored `external/projectaria_tools/`. It is not
@@ -117,18 +122,25 @@ ADT 探索路线记录在：
 
 - [docs/adt_exploration_plan.md](docs/adt_exploration_plan.md)
 - [docs/adt_feature_extraction_guide.md](docs/adt_feature_extraction_guide.md)
+- [docs/tutorial_gaze_feature_extraction.md](docs/tutorial_gaze_feature_extraction.md)
 
-这两份文档以中文说明为主，同时保留官方 API、字段名和坐标系英文术语。
+这些文档以中文说明为主，同时保留官方 API、字段名和坐标系英文术语。
 当 scripts、notebooks、APIs 或假设发生变化时，及时同步更新。
 
-当前下一步：
+已实现的 gaze-first tutorial：
 
-```text
-src/adt_sandbox/providers.py
-src/adt_sandbox/gaze.py
-scripts/extract_gaze_samples.py
-notebooks/01_gaze_feature_extraction.ipynb
+```bash
+python scripts/extract_gaze_samples.py <sequence_id> --start-index 900 --end-index 905 --stride 1
 ```
+
+它会导出完整 gaze CSV、RGB frames、RGB overlay frames 和 `manifest.json`。
+调试局部片段时可以用 `--start-index/--end-index` 选帧区间，也可以用
+`--start-offset-s/--end-offset-s` 按 sequence 内相对秒数选时间区间。
+如果已有 CSV 和 manifest，只想调整可视化参数，使用
+`scripts/visualize_gaze_outputs.py --stride <N>`，避免重新逐帧提取 gaze 或打开
+ADT provider。
+下一步是把这个 workflow 扩展成批量 gaze quality report，然后再做 pose、
+skeleton 和 object feature extraction。
 
 ## Working Conventions
 

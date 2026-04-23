@@ -17,4 +17,9 @@ notebook cell 里。
   timestamp alignment。
 
 稳定结论要同步写进 `docs/`，不要只留在 notebook cells。当前 API map 在
-`docs/adt_feature_extraction_guide.md`。
+`docs/adt_feature_extraction_guide.md`，已验证的 gaze-first tutorial 在
+`docs/tutorial_gaze_feature_extraction.md`。
+
+`01_gaze_feature_extraction.ipynb` 创建时应复用
+`scripts/extract_gaze_samples.py` 和 `src/adt_sandbox/gaze.py`，主要负责交互式
+查看 CSV、overlay、scanpath 和 3D rays，而不是重新实现提取逻辑。

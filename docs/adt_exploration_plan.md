@@ -59,9 +59,14 @@ camera projection、Scene transform 和可视化。
 
 计划产物：
 
-- `src/adt_sandbox/providers.py`
-- `src/adt_sandbox/gaze.py`
-- `scripts/extract_gaze_samples.py`
+- `src/adt_sandbox/providers.py`：已实现，使用官方 ADT provider。
+- `src/adt_sandbox/gaze.py`：已实现 gaze conversion、validation、
+  RGB projection、Scene-frame ray helpers。
+- `scripts/extract_gaze_samples.py`：已实现 gaze CSV、RGB frames、
+  overlay frames 和 manifest 导出。
+- `scripts/visualize_gaze_outputs.py`：已实现从已有 CSV/manifest/saved frames
+  重新生成 scanpath、scene_rays 和 overlay video。
+- `docs/tutorial_gaze_feature_extraction.md`：已实现中文 tutorial 笔记。
 - `notebooks/01_gaze_feature_extraction.ipynb`
 
 Gaze validity checks：
@@ -78,7 +83,7 @@ Gaze validity checks：
 Gaze visualizations：
 
 - RGB frame 上的 2D gaze point overlay
-- 短时间窗口内的 2D scanpath visualization
+- 短事件窗口内的 reference-frame scanpath visualization
 - Scene frame 中的 3D gaze ray
 - 可选：导出 Rerun `.rrd` 做交互式查看
 
@@ -175,12 +180,14 @@ Alignment rules：
 
 ## Immediate Next Step / 下一步
 
-先实现 gaze-first 路径：
+gaze-first 路径已经先跑通。当前下一步是把单 sequence tutorial 扩展成
+批量质量检查：
 
-1. 新增 `src/adt_sandbox/providers.py`：从 sequence id/path 创建 ADT providers。
-2. 新增 `src/adt_sandbox/gaze.py`：实现 gaze conversion、validation、
-   projection 和 Scene-frame ray helpers。
-3. 新增 `scripts/extract_gaze_samples.py`：为一个 sequence 导出小 CSV，
-   可选输出 debug frames。
-4. reusable helpers 能从脚本跑通后，再创建
-   `notebooks/01_gaze_feature_extraction.ipynb`。
+1. 新增 `scripts/check_gaze_quality.py`：遍历多个 sequences，统计
+   `validation_notes`、projection ratio、depth coverage、`gaze_dt_ns`
+   分布和 pose quality。
+2. 创建 `notebooks/01_gaze_feature_extraction.ipynb`：读取 tutorial 输出的
+   CSV、manifest 和 saved frames，交互式检查 gaze projection、scanpath 和
+   Scene-frame rays。
+3. 如果 gaze quality report 稳定，再进入 Phase 3 的 pose、skeleton、
+   object feature extraction。

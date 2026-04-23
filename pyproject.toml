@@ -9,6 +9,7 @@ description = "Lightweight sandbox for exploring the Aria Digital Twin dataset."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+  "imageio",
   "matplotlib",
   "numpy",
   "pandas",
