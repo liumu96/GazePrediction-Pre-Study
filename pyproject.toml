@@ -20,6 +20,8 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "ipykernel",
+  "ipywidgets",
+  "plotly",
   "pytest",
   "ruff",
 ]
