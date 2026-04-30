@@ -13,11 +13,11 @@ from .config import resolve_data_root
 class AdtProviders:
     """Container for a resolved ADT sequence and its Project Aria providers."""
 
-    sequence_path: Path
-    paths_provider: Any
-    data_paths: Any
-    gt_provider: Any
-    provider_mode: str
+    sequence_path: Path # The resolved path to the ADT sequence.
+    paths_provider: Any # The provider for ADT data paths, e.g. AriaDigitalTwinDataPathsProvider.
+    data_paths: Any     # The data paths obtained from the paths provider, used to initialize the data provider.
+    gt_provider: Any    # The provider for ADT data, e.g. AriaDigitalTwinDataProvider, initialized with the data paths.
+    provider_mode: str  # A string indicating the mode of the provider, e.g. "official_adt" for providers created from official ADT sequences.
 
 
 def resolve_sequence_path(sequence: str | Path) -> Path:

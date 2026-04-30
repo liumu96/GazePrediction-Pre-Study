@@ -126,6 +126,8 @@ ADT 探索路线记录在：
 - [docs/gaze_quality_report_notes.md](docs/gaze_quality_report_notes.md)
 - [docs/sparsegaze_modeling_notes.md](docs/sparsegaze_modeling_notes.md)
 - [docs/gaze_event_analysis_notes.md](docs/gaze_event_analysis_notes.md)
+- [docs/head_gaze_relationship_analysis.md](docs/head_gaze_relationship_analysis.md)
+- [docs/head_gaze_relationship_report.md](docs/head_gaze_relationship_report.md)
 
 这些文档以中文说明为主，同时保留官方 API、字段名和坐标系英文术语。
 当 scripts、notebooks、APIs 或假设发生变化时，及时同步更新。
@@ -165,6 +167,78 @@ python scripts/check_gaze_quality.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
 - `gaze_quality_report.json`
 
 不会重新打开 ADT provider，也不会生成可视化。
+
+如果下一步开始准备 event analysis，或者想先把可复用的 head 特征层落盘，
+先提取和 gaze 行对齐的 `head_samples.csv`：
+
+```bash
+python scripts/extract_head_proxy.py <sequence_id>
+```
+
+它会读取已有的 `gaze_samples.csv`，按相同时间戳查询 pose，导出：
+
+- `head_samples.csv`
+- `head_summary.json`
+
+当前 `head.py` 的定位已经不是只给 event 用的一张 context 摘要表，而是一层独立
+的 head feature layer。第一版 head 仍然不从 skeleton 提取，而是使用
+`device pose + CPF` 作为 tracker-mounted head proxy；输出同时包含：
+
+- Scene frame 下的绝对 pose
+- 相邻帧的相对平移 / 相对旋转
+- 可直接用于 head-gaze 关系分析和后续模型设计的基础特征
+
+如果下一步要系统分析 head 和 gaze 的关系，而不是立刻改模型，直接运行：
+
+先确认 `head_samples.csv` 是用当前 `head.py` 重构后的 schema 重新导出的。
+如果 D 盘上还是旧版 head CSV，先重跑：
+
+```bash
+python scripts/batch_extract_head_proxy.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+```
+
+然后再运行：
+
+```bash
+python scripts/analyze_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+```
+
+它会基于现有：
+
+- `gaze_samples.csv`
+- `head_samples.csv`
+
+生成：
+
+- 每条 sequence 的逐帧 joined table：`*_head_gaze_analysis_rows.csv`
+- 每条 sequence 的统计摘要：`*_head_gaze_analysis_summary.json`
+- 一份批量总表：`batch_head_gaze_analysis_summary.csv`
+- 一份批量报告：`batch_head_gaze_analysis_report.json`
+
+这一步的目标不是新的 detector，而是回答：
+
+- Scene 里 head 和 gaze 的几何关系是什么
+- local gaze dynamics 和 head motion 是否同步
+- current head motion 对下一步 gaze change 有没有统计上的解释力
+
+完整说明见：
+
+- [docs/head_gaze_relationship_analysis.md](docs/head_gaze_relationship_analysis.md)
+
+如果要把 whole-sequence CPF-local gaze dynamics feature 也跑出来：
+
+```bash
+python scripts/compute_gaze_dynamics_features.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+```
+
+它只保存连续特征：
+
+- `*_gaze_dynamics.csv`
+- `*_gaze_dynamics_summary.json`
+- `batch_gaze_dynamics_summary.csv`
+
+注意：这一步不再生成 CPF-based fixation labels。CPF velocity / dispersion
+保留为辅助 dynamics features；真正的 scene/object-level fixation 需要后续单独定义。
 
 ## Working Conventions
 

@@ -133,17 +133,66 @@ python scripts/check_gaze_quality.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
 
 - `docs/gaze_quality_report_notes.md`
 
-如果后面要进入 fixation / transition / event detection，先看：
+如果 event analysis 需要先拿到和 gaze 行对齐的 head context，运行：
+
+```bash
+python scripts/extract_head_proxy.py <sequence_id> \
+  --input-gaze-csv /mnt/d/SparseGaze/ADT-Gaze/<sequence_id>_gaze_samples.csv
+```
+
+第一版 head 不从 skeleton 提取，而是使用 `device pose + CPF` 作为 head proxy。
+当前 `head_samples.csv` 不再只是 event context 摘要，而是同时包含：
+
+- Scene frame 下的绝对 head proxy pose
+- 相邻帧的相对平移与相对旋转
+- 直接可用于后续模型设计和 head-gaze 关系分析的基础 head features
+
+如果下一步不是立刻做模型，而是先系统分析 head 和 gaze 的关系，运行：
+
+先确认 `head_samples.csv` 已经按当前 `head.py` 的完整 schema 重新导出。旧版
+head CSV 不再用于这一步；如果 D 盘上还是旧导出，先重跑：
+
+```bash
+python scripts/batch_extract_head_proxy.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+```
+
+然后再运行：
+
+```bash
+python scripts/analyze_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+```
+
+它会直接消费已经落盘的：
+
+- `gaze_samples.csv`
+- `head_samples.csv`
+
+生成：
+
+- `*_head_gaze_analysis_rows.csv`
+- `*_head_gaze_analysis_summary.json`
+- `batch_head_gaze_analysis_summary.csv`
+- `batch_head_gaze_analysis_report.json`
+
+这一层的目标不是定义新 event detector，而是先回答：
+
+- Scene 里 head 和 gaze 的几何关系是否稳定
+- local gaze dynamics 和 head motion 是否同步
+- current head motion 对下一步 gaze change 有没有统计上的解释力
+
+完整说明见：
+
+- `docs/head_gaze_relationship_analysis.md`
+
+如果后面需要 CPF-local gaze dynamics features，运行：
+
+```
+python scripts/compute_gaze_dynamics_features.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+```
+
+这一步只保存 `*_gaze_dynamics.csv`，不生成 CPF-based fixation labels。当前结论见：
 
 - `docs/gaze_event_analysis_notes.md`
-
-那份文档记录了：
-
-- 为什么 event detection 应该先在整条 sequence 上做
-- `yaw/pitch` dispersion 和 angular velocity 分别对应 `I-DT` / `I-VT`
-- 为什么第一版主空间建议先用 CPF / local gaze
-- 为什么 head motion 先作为 context，而不是直接混进 gaze event 判据
-- 为什么 30 Hz 下更适合先做 `fixation_candidate` / `transition_candidate`
 
 ## Re-visualize Existing CSV / 复用已有 CSV 重新可视化
 

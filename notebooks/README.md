@@ -9,6 +9,16 @@ notebook cell 里。
 - `01_gaze_feature_extraction.ipynb`: inspect gaze extraction, validity,
   projection to RGB, scanpath visualization, and Scene-frame gaze rays。先把
   gaze 的提取、验证和 2D/3D 可视化跑通。
+- `02_gaze_head_scene_viewer.ipynb`: interactively choose one sequence and one
+  frame range, then render Scene-frame gaze direction and head forward direction
+  together in 3D。默认把 gaze 和 head 都画成固定长度单位方向箭头，便于直接
+  比较方向；如果需要，也可以切回 depth-scaled gaze 显示。
+- `04_gaze_head_scene_viewer_interactive.ipynb`: 与 `02` 看同一类数据，但改成
+  `plotly` 交互式 3D。当前不是完全自由轨道相机，而是受控视角：
+  - 指定哪个 Scene 轴当作现实里的“上”
+  - 用 `azimuth` 滑块绕这个竖直轴旋转
+  - 鼠标默认只做 zoom
+  - 当前 ADT 这批提取结果默认使用 `Scene Y up`
 - `02_pose_skeleton_objects.ipynb`: inspect Aria pose, skeleton joints, object
   2D/3D boxes, and image/depth/segmentation streams。扩展到 pose、skeleton、
   object、depth 和 segmentation。

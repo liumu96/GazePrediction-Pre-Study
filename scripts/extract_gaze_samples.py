@@ -51,7 +51,7 @@ def parse_args() -> argparse.Namespace:
         "sequence",
         type=Path,
         help="ADT sequence id resolved under ADT_DATA_ROOT, or an absolute sequence path.",
-    )
+    ) # sequence 参数可以是一个相对路径（相对于 ADT_DATA_ROOT）或者一个绝对路径，指向要处理的 ADT 序列。
     parser.add_argument(
         "--stride",
         type=int,
@@ -60,13 +60,13 @@ def parse_args() -> argparse.Namespace:
             "Step between RGB frame timestamps. Default is 1, which keeps every "
             "available RGB timestamp. For 30 fps RGB, stride=30 is about 1 Hz."
         ),
-    )
+    ) # stride 参数控制在处理 RGB 帧时的步长。默认值为 1，表示使用每一个可用的 RGB 时间戳。如果设置为 30，则表示每隔 30 个 RGB 帧（约 1 秒钟）选取一个时间戳。
     parser.add_argument(
         "--start-index",
         type=int,
         default=0,
         help="Starting RGB timestamp index before applying stride.",
-    )
+    ) # start-index 参数指定在应用 stride 之前，RGB 时间戳的起始索引。默认值为 0，表示从第一个 RGB 时间戳开始处理。
     parser.add_argument(
         "--end-index",
         type=int,
@@ -75,7 +75,7 @@ def parse_args() -> argparse.Namespace:
             "Exclusive ending RGB timestamp index before applying stride. "
             "Default is the end of the sequence."
         ),
-    )
+    ) # end-index 参数指定在应用 stride 之前，RGB 时间戳的结束索引（不包括该索引）。默认值为序列的末尾。
     parser.add_argument(
         "--start-offset-s",
         type=float,
@@ -84,7 +84,7 @@ def parse_args() -> argparse.Namespace:
             "Start time in seconds, relative to the first RGB timestamp after annotation "
             "range filtering. Applied before index selection."
         ),
-    )
+    ) # start-offset-s 参数指定一个相对于第一个 RGB 时间戳的起始时间（以秒为单位）。这个偏移量在应用索引选择之前应用，用于进一步过滤时间范围。
     parser.add_argument(
         "--end-offset-s",
         type=float,
@@ -93,29 +93,29 @@ def parse_args() -> argparse.Namespace:
             "Exclusive end time in seconds, relative to the first RGB timestamp after "
             "annotation range filtering. Applied before index selection."
         ),
-    )
+    ) # end-offset-s 参数指定一个相对于第一个 RGB 时间戳的结束时间（以秒为单位）。这个偏移量在应用索引选择之前应用，用于进一步过滤时间范围。
     parser.add_argument(
         "--stream-id",
         default=RGB_STREAM_ID,
         help="Project Aria stream id for RGB. Default is 214-1.",
-    )
+    ) # stream-id 参数指定用于 RGB 的 Project Aria 流 ID。默认值是 214-1，表示使用 RGB 流。
     parser.add_argument(
         "--max-dt-ms",
         type=float,
         default=20.0,
         help="Flag gaze samples whose nearest timestamp differs by more than this value.",
-    )
+    ) # max-dt-ms 参数指定一个阈值（以毫秒为单位），用于标记那些最近的时间戳之间差异超过该值的 gaze 样本。这有助于识别时间对齐不良的样本。
     parser.add_argument(
         "--output-csv",
         type=Path,
         default=None,
         help="Output CSV path. Defaults to outputs/reports/<sequence>_gaze_samples.csv.",
-    )
+    ) # output-csv 参数指定输出 CSV 文件的路径。默认值是 outputs/reports/<sequence>_gaze_samples.csv，其中 <sequence> 将被替换为处理的序列名称。
     parser.add_argument(
         "--raw-image-orientation",
         action="store_true",
         help="Keep RGB-related projections in raw sensor orientation instead of upright.",
-    )
+    ) # raw-image-orientation 参数是一个布尔标志，如果设置了这个标志，RGB 相关的投影将保持在原始传感器方向，而不是调整为竖直方向。这可能对于某些分析或可视化任务更有用。
     return parser.parse_args()
 
 

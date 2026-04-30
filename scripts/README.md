@@ -16,9 +16,28 @@
 - `batch_extract_gaze_samples.py`: batch-run the same gaze-only extraction
   workflow across multiple sequences。用于批量生成每个 sequence 的
   `gaze_samples.csv`、`gaze_summary.json` 和一个批量总表。
+- `extract_head_proxy.py`: extract a reusable head-feature table aligned to one
+  existing `gaze_samples.csv`。第一版 head 使用 `device pose + CPF`，不从
+  skeleton 提；输出现在是一层独立的 head feature layer，同时包含绝对
+  Scene pose 和相对运动特征，而不只是 event context 摘要。
+- `batch_extract_head_proxy.py`: batch-run head-proxy extraction over one reports
+  directory of `gaze_samples.csv` files。
 - `check_gaze_quality.py`: summarize the extracted `gaze_summary.json` files
   into one flat CSV and one aggregate JSON。用于在不重新打开 provider 的前提下，
   做 sequence-level gaze 质量体检。
+- `compute_gaze_dynamics_features.py`: compute whole-sequence per-frame
+  CPF-local gaze dynamics from existing `gaze_samples.csv` + `head_samples.csv`。
+  这一层只算 local gaze velocity / dispersion 和 head context，不生成
+  fixation/saccade labels。
+- `analyze_head_gaze_relationship.py`: build a per-frame joined head-gaze table
+  plus sequence-level and batch-level statistics from existing gaze/head CSV
+  exports。用于系统回答：
+  - Scene 里 head 和 gaze 的夹角关系
+  - local gaze dynamics 和 head motion 的关系
+  - current head motion 对下一步 gaze change 的相关性
+- `report_head_gaze_relationship.py`: turn the already generated batch analysis
+  outputs into a readable markdown report with fixed tables and figures。适合把
+  这一步结果沉淀成可引用的分析报告，而不是只看原始 CSV/JSON。
 - `visualize_gaze_outputs.py`: regenerate visualizations from an existing gaze
   CSV and a selected row window。它会读取已有 CSV，再只为当前窗口打开 ADT
   provider 生成 scanpath、scene_rays、overlay frames 和 overlay video。
@@ -53,6 +72,47 @@ python scripts/batch_extract_gaze_samples.py <sequence_id_1> <sequence_id_2> --s
 python scripts/check_gaze_quality.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
 ```
 
+如果要为 gaze dynamics 或 head-gaze 关系分析先提 head features：
+
+```bash
+python scripts/extract_head_proxy.py <sequence_id> --input-gaze-csv /mnt/d/SparseGaze/ADT-Gaze/<sequence_id>_gaze_samples.csv
+```
+
+如果要批量提 head proxy：
+
+```bash
+python scripts/batch_extract_head_proxy.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+```
+
+如果要继续跑 whole-sequence CPF-local gaze dynamics features：
+
+```bash
+python scripts/compute_gaze_dynamics_features.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+```
+
+如果要系统分析 head-gaze 关系：
+
+先确认 `head_samples.csv` 是新版 schema；如果 D 盘上还是旧导出，先重跑：
+
+```bash
+python scripts/batch_extract_head_proxy.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+```
+
+然后再运行：
+
+```bash
+python scripts/analyze_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+```
+
+脚本只依赖 gaze/head 基础层，生成 geometry / dynamics / temporal diagnostic
+统计，不读取 CPF-based fixation labels。
+
+如果 head-gaze 分析已经跑完，要把结果整理成报告和图表：
+
+```bash
+python scripts/report_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+```
+
 如果已经有 CSV，只想重新调可视化参数：
 
 ```bash
@@ -73,4 +133,5 @@ python scripts/visualize_gaze_outputs.py <sequence_id> \
 
 完整路线见 `docs/adt_exploration_plan.md`，API map 见
 `docs/adt_feature_extraction_guide.md`，gaze tutorial 见
-`docs/tutorial_gaze_feature_extraction.md`。
+`docs/tutorial_gaze_feature_extraction.md`，
+head-gaze 分析说明见 `docs/head_gaze_relationship_analysis.md`。

@@ -180,43 +180,55 @@ Alignment rules：
 - 小型 reports 放 `outputs/reports/`
 - 大型 derived data 放 repo 外，例如 D 盘
 
-## Phase 6: Gaze Event Analysis / gaze event 分析
+## Phase 6: Gaze Dynamics and Head-Gaze Analysis / gaze dynamics 与 head-gaze 分析
 
-目标：在整条 sequence 上先做 event feature computation 和 event detection，
-再围绕检测结果做 fixation / transition 复查和下游分析。
+目标：保留 CPF-local gaze dynamics 作为连续特征，并分析它和 head motion 的关系。
+CPF-based fixation labels 已从主线移除；真正的 scene/object-level event detection
+后续单独设计。
 
 主文档：
 
 - `docs/gaze_event_analysis_notes.md`
 - `docs/gaze_quality_report_notes.md`
+- `docs/head_gaze_relationship_analysis.md`
 
 当前原则：
 
-- event detection 先在全 sequence 上做，而不是先人工选片段
-- 第一版主空间优先用 CPF / local gaze
-- head motion 先单独作为 context feature
-- 30 Hz 先做 `fixation_candidate` / `transition_candidate`
-- 阈值先全部参数化，等分布统计后再收敛
+- CPF-local velocity / dispersion 是有用的 dynamics feature
+- CPF-thresholded fixation labels 不作为最终 event label
+- `head.py` 是独立 head feature layer
+- head-gaze analysis 不读取 CPF fixation labels
+- scene/object-level fixation 后续另起 pipeline
 
 计划产物：
 
-- `scripts/compute_gaze_event_features.py`
-- `scripts/detect_gaze_events.py`
-- `notebooks/04_gaze_event_analysis.ipynb`
+- `src/adt_sandbox/head.py`
+- `src/adt_sandbox/gaze_dynamics.py`
+- `src/adt_sandbox/head_gaze_analysis.py`
+- `scripts/extract_head_proxy.py`
+- `scripts/compute_gaze_dynamics_features.py`
+- `scripts/analyze_head_gaze_relationship.py`
+- `notebooks/04_gaze_head_scene_viewer_interactive.ipynb`
+
+当前状态：
+
+- `head.py`、`extract_head_proxy.py`、`batch_extract_head_proxy.py` 已实现
+- `head_samples.csv` 当前同时包含绝对 Scene pose 和相对运动特征
+- `compute_gaze_dynamics_features.py` 已实现
+- `head_gaze_analysis.py` 与 `analyze_head_gaze_relationship.py` 已实现：
+  - 从已有 gaze/head CSV 直接生成逐帧 joined table
+  - 量化 Scene 几何关系、local 动态关系、head rotation strata
+  - 以及 current head motion 对下一步 gaze change 的相关性
 
 ## Immediate Next Step / 下一步
 
 gaze-first 路径已经先跑通。当前更合理的顺序是：
 
-1. 用 `scripts/batch_extract_gaze_samples.py` 先把全部 sequence 的 gaze CSV 和
-   轻量 summary 跑出来，不生成可视化。
-2. 再运行 `scripts/check_gaze_quality.py`：读取这些 summary，统计
-   `validation_notes`、projection ratio、depth coverage、`gaze_dt_ns`
-   分布和 pose quality。
-3. 创建 `notebooks/01_gaze_feature_extraction.ipynb`：读取已有 CSV、summary
-   和按需生成的 figures，交互式检查 gaze projection、scanpath 和
-   Scene-frame rays。
-4. 基于 `docs/gaze_event_analysis_notes.md` 实现整条 sequence 的 event
-   feature computation 和 event detection。
-5. 如果 gaze quality report 和 event policy 都稳定，再进入 Phase 3 的 pose、
-   skeleton、object feature extraction。
+1. 基于已有 `gaze_samples.csv`、`head_samples.csv` 做 head-gaze relationship analysis：
+   - `scripts/analyze_head_gaze_relationship.py`
+2. 如需导出 CPF-local dynamics feature table：
+   - `scripts/compute_gaze_dynamics_features.py`
+3. 后续真正要做 event 时，单独设计 scene/object-level event pipeline：
+   - predictor-facing error analysis
+   - object / task context 对接
+   - scene/object-level fixation labels

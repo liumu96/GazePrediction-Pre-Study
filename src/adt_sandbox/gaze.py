@@ -386,21 +386,21 @@ def extract_gaze_sample(
         return _invalid_sample(timestamp_ns, pose_with_dt, "gaze_query_invalid")
 
     eye_gaze = gaze_with_dt.data()
-    gaze_dt_ns = int(gaze_with_dt.dt_ns())
+    gaze_dt_ns = int(gaze_with_dt.dt_ns()) # gaze_dt_ns 是 gaze timestamp 和 query timestamp 之间的时间差，单位是纳秒。这个值可以用来评估时间对齐的质量。
     pose_valid = bool(pose_with_dt.is_valid())
-    pose_dt_ns = int(pose_with_dt.dt_ns()) if pose_valid else None
+    pose_dt_ns = int(pose_with_dt.dt_ns()) if pose_valid else None # pose_dt_ns 是 pose timestamp 和 query timestamp 之间的时间差，单位是纳秒。这个值可以用来评估时间对齐的质量。
     pose_quality = float(pose_with_dt.data().quality_score) if pose_valid else None
 
     # Exploration keeps flagged rows instead of dropping them immediately. The
     # later quality report can decide which notes should become reject rules.
     if max_dt_ns is not None and abs(gaze_dt_ns) > max_dt_ns:
         notes.append("gaze_dt_exceeds_threshold")
-    if not np.isfinite([eye_gaze.yaw, eye_gaze.pitch]).all():
+    if not np.isfinite([eye_gaze.yaw, eye_gaze.pitch]).all(): # 如果 yaw 或 pitch 不是有限数值（可能是无穷大或 NaN），就添加 "yaw_or_pitch_not_finite" 到 notes。这有助于识别那些 gaze 数据不可靠的样本。
         notes.append("yaw_or_pitch_not_finite")
-    if eye_gaze.depth <= 0:
+    if eye_gaze.depth <= 0: # 如果 depth 小于或等于 0，就添加 "depth_not_available" 到 notes。这是因为有效的 gaze depth 应该是正数，非正数可能表示深度信息不可用或无效。
         notes.append("depth_not_available")
 
-    yaw_width, pitch_width = confidence_widths(eye_gaze)
+    yaw_width, pitch_width = confidence_widths(eye_gaze) # confidence_widths 函数计算 yaw 和 pitch 的置信区间宽度。如果这些宽度不是有限数值，就添加 "confidence_width_not_finite" 到 notes。这有助于识别那些 gaze 置信度信息不可靠的样本。
     if not np.isfinite([yaw_width, pitch_width]).all():
         notes.append("confidence_width_not_finite")
 

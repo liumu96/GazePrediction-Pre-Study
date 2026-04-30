@@ -1,9 +1,9 @@
 """Head-feature extraction helpers based on ADT device/CPF pose.
 
 This module is intended to play the same role for head motion that `gaze.py`
-plays for gaze: a reusable feature layer. Event analysis, visualization, and
-future modeling code should consume these head features instead of rebuilding
-pose-derived quantities ad hoc.
+plays for gaze: a reusable feature layer. Dynamics analysis, visualization,
+and future modeling code should consume these head features instead of
+rebuilding pose-derived quantities ad hoc.
 """
 
 from __future__ import annotations
@@ -18,13 +18,89 @@ from typing import Any
 import numpy as np
 
 
+HEAD_FIELD_COORDINATE_FRAMES = {
+    "query_timestamp_ns": "device_time_ns",
+    "pose_dt_ns": "device_time_ns_delta",
+    "head_origin_scene_x_m": "adt_scene_frame_m",
+    "head_origin_scene_y_m": "adt_scene_frame_m",
+    "head_origin_scene_z_m": "adt_scene_frame_m",
+    "head_right_scene_unit_x": "adt_scene_frame_unit_direction",
+    "head_right_scene_unit_y": "adt_scene_frame_unit_direction",
+    "head_right_scene_unit_z": "adt_scene_frame_unit_direction",
+    "head_up_scene_unit_x": "adt_scene_frame_unit_direction",
+    "head_up_scene_unit_y": "adt_scene_frame_unit_direction",
+    "head_up_scene_unit_z": "adt_scene_frame_unit_direction",
+    "head_forward_scene_unit_x": "adt_scene_frame_unit_direction",
+    "head_forward_scene_unit_y": "adt_scene_frame_unit_direction",
+    "head_forward_scene_unit_z": "adt_scene_frame_unit_direction",
+    "head_rot_scene_r00": "rotation_matrix_scene_from_cpf",
+    "head_rot_scene_r01": "rotation_matrix_scene_from_cpf",
+    "head_rot_scene_r02": "rotation_matrix_scene_from_cpf",
+    "head_rot_scene_r10": "rotation_matrix_scene_from_cpf",
+    "head_rot_scene_r11": "rotation_matrix_scene_from_cpf",
+    "head_rot_scene_r12": "rotation_matrix_scene_from_cpf",
+    "head_rot_scene_r20": "rotation_matrix_scene_from_cpf",
+    "head_rot_scene_r21": "rotation_matrix_scene_from_cpf",
+    "head_rot_scene_r22": "rotation_matrix_scene_from_cpf",
+    "translation_scene_dx_m": "adt_scene_frame_m",
+    "translation_scene_dy_m": "adt_scene_frame_m",
+    "translation_scene_dz_m": "adt_scene_frame_m",
+    "translation_prev_head_dx_m": "previous_head_frame_m",
+    "translation_prev_head_dy_m": "previous_head_frame_m",
+    "translation_prev_head_dz_m": "previous_head_frame_m",
+    "origin_step_m": "adt_scene_frame_m",
+    "head_translation_speed_m_s": "adt_scene_frame_m_per_s",
+    "relative_rot_prev_to_cur_r00": "rotation_matrix_previous_head_to_current_head",
+    "relative_rot_prev_to_cur_r01": "rotation_matrix_previous_head_to_current_head",
+    "relative_rot_prev_to_cur_r02": "rotation_matrix_previous_head_to_current_head",
+    "relative_rot_prev_to_cur_r10": "rotation_matrix_previous_head_to_current_head",
+    "relative_rot_prev_to_cur_r11": "rotation_matrix_previous_head_to_current_head",
+    "relative_rot_prev_to_cur_r12": "rotation_matrix_previous_head_to_current_head",
+    "relative_rot_prev_to_cur_r20": "rotation_matrix_previous_head_to_current_head",
+    "relative_rot_prev_to_cur_r21": "rotation_matrix_previous_head_to_current_head",
+    "relative_rot_prev_to_cur_r22": "rotation_matrix_previous_head_to_current_head",
+    "head_forward_angle_step_deg": "scene_frame_angle_deg",
+    "head_rotation_angle_step_deg": "relative_rotation_angle_deg",
+    "head_rotation_speed_deg_s": "relative_rotation_angle_deg_per_s",
+}
+
+HEAD_FIELD_DEFINITIONS = {
+    "head_proxy_source": (
+        "Device pose plus CPF calibration, used as the first head-motion proxy "
+        "before introducing skeleton-based head signals."
+    ),
+    "head_origin_scene_xyz": "Scene-frame CPF origin.",
+    "head_right_scene_unit_xyz": "Scene-frame CPF +X unit axis.",
+    "head_up_scene_unit_xyz": "Scene-frame CPF +Y unit axis.",
+    "head_forward_scene_unit_xyz": (
+        "Scene-frame unit forward direction obtained by transforming the CPF +Z axis."
+    ),
+    "head_rot_scene_rij": (
+        "Entries of the Scene-from-CPF rotation matrix. Columns correspond to CPF "
+        "right / up / forward axes expressed in Scene frame."
+    ),
+    "translation_scene_dxyz_m": (
+        "Frame-to-frame translation in Scene frame between consecutive valid head samples."
+    ),
+    "translation_prev_head_dxyz_m": (
+        "Frame-to-frame translation expressed in the previous valid head frame."
+    ),
+    "relative_rot_prev_to_cur_rij": (
+        "Rotation matrix from the previous valid head frame to the current head frame."
+    ),
+    "head_rotation_angle_step_deg": (
+        "Total relative rotation magnitude between consecutive valid head samples."
+    ),
+}
+
+
 @dataclass(frozen=True)
 class HeadSample:
     """One head-feature sample aligned to a query timestamp.
 
     zh-CN:
     这里的 head 不是 skeleton 里的头部 joint，而是基于 ADT `device pose + CPF`
-    构建的 head-mounted tracker proxy。目标不是只服务 event，而是把 head 的
+    构建的 head-mounted tracker proxy。目标是把 head 的
     绝对姿态和相对运动都整理成可复用的数据层。
     """
 
@@ -84,6 +160,46 @@ class HeadSample:
         return asdict(self)
 
 
+@dataclass(frozen=True)
+class _TemporalHeadContext:
+    """Frame-to-frame head motion features attached to a HeadSample."""
+
+    dt_from_prev_s: float | None = None
+    translation_scene_dx_m: float | None = None
+    translation_scene_dy_m: float | None = None
+    translation_scene_dz_m: float | None = None
+    translation_prev_head_dx_m: float | None = None
+    translation_prev_head_dy_m: float | None = None
+    translation_prev_head_dz_m: float | None = None
+    origin_step_m: float | None = None
+    head_translation_speed_m_s: float | None = None
+    relative_rot_prev_to_cur_r00: float | None = None
+    relative_rot_prev_to_cur_r01: float | None = None
+    relative_rot_prev_to_cur_r02: float | None = None
+    relative_rot_prev_to_cur_r10: float | None = None
+    relative_rot_prev_to_cur_r11: float | None = None
+    relative_rot_prev_to_cur_r12: float | None = None
+    relative_rot_prev_to_cur_r20: float | None = None
+    relative_rot_prev_to_cur_r21: float | None = None
+    relative_rot_prev_to_cur_r22: float | None = None
+    head_forward_angle_step_deg: float | None = None
+    head_rotation_angle_step_deg: float | None = None
+    head_rotation_speed_deg_s: float | None = None
+
+
+def extract_head_samples_at_timestamps(
+    gt_provider: Any,
+    timestamps_ns: Sequence[int],
+) -> list[HeadSample]:
+    """Extract aligned head samples and attach temporal motion features."""
+
+    absolute_samples = [
+        extract_head_sample(gt_provider, timestamp_ns)
+        for timestamp_ns in timestamps_ns
+    ]
+    return add_temporal_head_context(absolute_samples)
+
+
 def extract_head_sample(gt_provider: Any, timestamp_ns: int) -> HeadSample:
     """Extract one aligned head sample using `T_scene_cpf`.
 
@@ -121,7 +237,7 @@ def extract_head_sample(gt_provider: Any, timestamp_ns: int) -> HeadSample:
             validation_notes="scene_basis_invalid",
         )
 
-    """ The head proxy's right, up, and forward unit vectors form the rotation matrix from CPF frame to scene frame."""
+    # Columns are CPF right / up / forward axes expressed in Scene frame.
     rotation_scene = np.column_stack([right_scene, up_scene, forward_scene])
     return HeadSample(
         query_timestamp_ns=int(timestamp_ns),
@@ -184,77 +300,87 @@ def add_temporal_head_context(samples: Sequence[HeadSample]) -> list[HeadSample]
             enriched.append(sample)
             continue
 
-        dt_from_prev_s: float | None = None
-        translation_scene = None
-        translation_prev_head = None
-        origin_step_m: float | None = None
-        translation_speed_m_s: float | None = None
-        relative_rotation = None
-        forward_angle_step_deg: float | None = None
-        rotation_angle_step_deg: float | None = None
-        rotation_speed_deg_s: float | None = None
+        temporal_context = _compute_temporal_head_context(prev_valid, sample)
         notes = [] if sample.validation_notes == "ok" else [sample.validation_notes]
-
-        if prev_valid is not None:
-            dt_ns = sample.query_timestamp_ns - prev_valid.query_timestamp_ns
-            dt_from_prev_s = dt_ns / 1e9 if dt_ns > 0 else None
-            current_origin = head_origin_xyz(sample)
-            prev_origin = head_origin_xyz(prev_valid)
-            current_forward = head_forward_xyz(sample)
-            prev_forward = head_forward_xyz(prev_valid)
-            current_rotation = head_rotation_scene_matrix(sample)
-            prev_rotation = head_rotation_scene_matrix(prev_valid)
-
-            if current_origin is not None and prev_origin is not None:
-                translation_scene = current_origin - prev_origin
-                origin_step_m = float(np.linalg.norm(translation_scene)) # Step length in scene frame
-                if dt_from_prev_s and dt_from_prev_s > 0:
-                    translation_speed_m_s = origin_step_m / dt_from_prev_s # Speed in scene frame
-
-            if current_rotation is not None and prev_rotation is not None:
-                relative_rotation = prev_rotation.T @ current_rotation # Rotation from previous head frame to current head frame
-                if translation_scene is not None:
-                    translation_prev_head = prev_rotation.T @ translation_scene # Translation in previous head frame
-                rotation_angle_step_deg = rotation_angle_deg_from_matrix(relative_rotation) # Rotation angle step in degrees
-                if rotation_angle_step_deg is not None and dt_from_prev_s and dt_from_prev_s > 0:
-                    rotation_speed_deg_s = rotation_angle_step_deg / dt_from_prev_s # Rotation speed in degrees per second
-
-            if current_forward is not None and prev_forward is not None:
-                forward_angle_step_deg = angle_between_unit_vectors_deg(
-                    prev_forward,
-                    current_forward,
-                ) # Forward direction angle step in degrees
 
         enriched.append(
             replace(
                 sample,
-                dt_from_prev_s=dt_from_prev_s, # Time delta from previous valid sample
-                translation_scene_dx_m=_vector_component_or_none(translation_scene, 0), # Translation in scene frame
-                translation_scene_dy_m=_vector_component_or_none(translation_scene, 1), # Translation in scene frame
-                translation_scene_dz_m=_vector_component_or_none(translation_scene, 2), # Translation in scene frame
-                translation_prev_head_dx_m=_vector_component_or_none(translation_prev_head, 0), # Translation in previous head frame
-                translation_prev_head_dy_m=_vector_component_or_none(translation_prev_head, 1), # Translation in previous head frame
-                translation_prev_head_dz_m=_vector_component_or_none(translation_prev_head, 2), # Translation in previous head frame
-                origin_step_m=origin_step_m, # Step length in scene frame
-                head_translation_speed_m_s=translation_speed_m_s, # Speed in scene frame
-                relative_rot_prev_to_cur_r00=_matrix_component_or_none(relative_rotation, 0, 0), # Relative rotation matrix from previous head frame to current head frame
-                relative_rot_prev_to_cur_r01=_matrix_component_or_none(relative_rotation, 0, 1), # Relative rotation matrix from previous head frame to current head frame
-                relative_rot_prev_to_cur_r02=_matrix_component_or_none(relative_rotation, 0, 2), # Relative rotation matrix from previous head frame to current head frame
-                relative_rot_prev_to_cur_r10=_matrix_component_or_none(relative_rotation, 1, 0), # Relative rotation matrix from previous head frame to current head frame
-                relative_rot_prev_to_cur_r11=_matrix_component_or_none(relative_rotation, 1, 1), # Relative rotation matrix from previous head frame to current head frame
-                relative_rot_prev_to_cur_r12=_matrix_component_or_none(relative_rotation, 1, 2), # Relative rotation matrix from previous head frame to current head frame
-                relative_rot_prev_to_cur_r20=_matrix_component_or_none(relative_rotation, 2, 0), # Relative rotation matrix from previous head frame to current head frame
-                relative_rot_prev_to_cur_r21=_matrix_component_or_none(relative_rotation, 2, 1), # Relative rotation matrix from previous head frame to current head frame
-                relative_rot_prev_to_cur_r22=_matrix_component_or_none(relative_rotation, 2, 2), # Relative rotation matrix from previous head frame to current head frame
-                head_forward_angle_step_deg=forward_angle_step_deg, # Forward direction angle step in degrees
-                head_rotation_angle_step_deg=rotation_angle_step_deg, # Rotation angle step in degrees
-                head_rotation_speed_deg_s=rotation_speed_deg_s, # Rotation speed in degrees per second
+                **asdict(temporal_context),
                 validation_notes=";".join(notes) if notes else "ok",
             )
         )
         prev_valid = sample
 
     return enriched
+
+
+def _compute_temporal_head_context(
+    prev_sample: HeadSample | None,
+    current_sample: HeadSample,
+) -> _TemporalHeadContext:
+    if prev_sample is None:
+        return _TemporalHeadContext()
+
+    dt_ns = current_sample.query_timestamp_ns - prev_sample.query_timestamp_ns
+    dt_from_prev_s = dt_ns / 1e9 if dt_ns > 0 else None
+
+    current_origin = head_origin_xyz(current_sample)
+    prev_origin = head_origin_xyz(prev_sample)
+    current_forward = head_forward_xyz(current_sample)
+    prev_forward = head_forward_xyz(prev_sample)
+    current_rotation = head_rotation_scene_matrix(current_sample)
+    prev_rotation = head_rotation_scene_matrix(prev_sample)
+
+    translation_scene = None
+    translation_prev_head = None
+    origin_step_m = None
+    translation_speed_m_s = None
+    relative_rotation = None
+    forward_angle_step_deg = None
+    rotation_angle_step_deg = None
+    rotation_speed_deg_s = None
+
+    if current_origin is not None and prev_origin is not None:
+        translation_scene = current_origin - prev_origin
+        origin_step_m = float(np.linalg.norm(translation_scene))
+        if dt_from_prev_s is not None and dt_from_prev_s > 0:
+            translation_speed_m_s = origin_step_m / dt_from_prev_s
+
+    if current_rotation is not None and prev_rotation is not None:
+        relative_rotation = prev_rotation.T @ current_rotation
+        if translation_scene is not None:
+            translation_prev_head = prev_rotation.T @ translation_scene
+        rotation_angle_step_deg = rotation_angle_deg_from_matrix(relative_rotation)
+        if rotation_angle_step_deg is not None and dt_from_prev_s is not None and dt_from_prev_s > 0:
+            rotation_speed_deg_s = rotation_angle_step_deg / dt_from_prev_s
+
+    if current_forward is not None and prev_forward is not None:
+        forward_angle_step_deg = angle_between_unit_vectors_deg(prev_forward, current_forward)
+
+    return _TemporalHeadContext(
+        dt_from_prev_s=dt_from_prev_s,
+        translation_scene_dx_m=_vector_component_or_none(translation_scene, 0),
+        translation_scene_dy_m=_vector_component_or_none(translation_scene, 1),
+        translation_scene_dz_m=_vector_component_or_none(translation_scene, 2),
+        translation_prev_head_dx_m=_vector_component_or_none(translation_prev_head, 0),
+        translation_prev_head_dy_m=_vector_component_or_none(translation_prev_head, 1),
+        translation_prev_head_dz_m=_vector_component_or_none(translation_prev_head, 2),
+        origin_step_m=origin_step_m,
+        head_translation_speed_m_s=translation_speed_m_s,
+        relative_rot_prev_to_cur_r00=_matrix_component_or_none(relative_rotation, 0, 0),
+        relative_rot_prev_to_cur_r01=_matrix_component_or_none(relative_rotation, 0, 1),
+        relative_rot_prev_to_cur_r02=_matrix_component_or_none(relative_rotation, 0, 2),
+        relative_rot_prev_to_cur_r10=_matrix_component_or_none(relative_rotation, 1, 0),
+        relative_rot_prev_to_cur_r11=_matrix_component_or_none(relative_rotation, 1, 1),
+        relative_rot_prev_to_cur_r12=_matrix_component_or_none(relative_rotation, 1, 2),
+        relative_rot_prev_to_cur_r20=_matrix_component_or_none(relative_rotation, 2, 0),
+        relative_rot_prev_to_cur_r21=_matrix_component_or_none(relative_rotation, 2, 1),
+        relative_rot_prev_to_cur_r22=_matrix_component_or_none(relative_rotation, 2, 2),
+        head_forward_angle_step_deg=forward_angle_step_deg,
+        head_rotation_angle_step_deg=rotation_angle_step_deg,
+        head_rotation_speed_deg_s=rotation_speed_deg_s,
+    )
 
 
 # ======================== Head sample parsing and CSV I/O ========================
@@ -395,55 +521,55 @@ def summarize_head_samples(samples: Sequence[HeadSample]) -> dict[str, Any]:
                 note_counts[note] = note_counts.get(note, 0) + 1
 
     return {
-        "sample_count": len(samples), # Total number of head samples
-        "query_timestamp_start_ns": samples[0].query_timestamp_ns, # Query timestamp of the first head sample
-        "query_timestamp_end_ns": samples[-1].query_timestamp_ns,  # Query timestamp of the last head sample
-        "duration_s": (samples[-1].query_timestamp_ns - samples[0].query_timestamp_ns) / 1e9, # Duration covered by the head samples in seconds
-        "pose_valid_count": pose_valid_count, # Number of head samples with valid pose
-        "pose_valid_ratio": pose_valid_count / len(samples), # Ratio of head samples with valid pose
-        "temporal_context_count": temporal_context_count, # Number of head samples with temporal context (i.e., origin step is not None)
-        "temporal_context_ratio": temporal_context_count / len(samples), # Ratio of head samples with temporal context
-        "validation_note_counts": dict(sorted(note_counts.items())), # Counts of different validation notes found in the head samples
+        "sample_count": len(samples),
+        "query_timestamp_start_ns": samples[0].query_timestamp_ns,
+        "query_timestamp_end_ns": samples[-1].query_timestamp_ns,
+        "duration_s": (samples[-1].query_timestamp_ns - samples[0].query_timestamp_ns) / 1e9,
+        "pose_valid_count": pose_valid_count,
+        "pose_valid_ratio": pose_valid_count / len(samples),
+        "temporal_context_count": temporal_context_count,
+        "temporal_context_ratio": temporal_context_count / len(samples),
+        "validation_note_counts": dict(sorted(note_counts.items())),
         "pose_dt_ms": describe_optional_numbers(
             [sample.pose_dt_ns / 1e6 for sample in samples if sample.pose_dt_ns is not None]
-        ), # Statistics of pose query latency in milliseconds for head samples with valid pose_dt_ns
+        ),
         "pose_quality_score": describe_optional_numbers(
             [sample.pose_quality_score for sample in samples if sample.pose_quality_score is not None]
-        ), # Statistics of pose quality scores for head samples with valid pose_quality_score
+        ),
         "dt_from_prev_s": describe_optional_numbers(
             [sample.dt_from_prev_s for sample in samples if sample.dt_from_prev_s is not None]
-        ), # Statistics of time differences from previous head samples for head samples with valid dt_from_prev_s
+        ),
         "origin_step_m": describe_optional_numbers(
             [sample.origin_step_m for sample in samples if sample.origin_step_m is not None]
-        ), # Statistics of step lengths in scene frame for head samples with valid origin_step_m
+        ),
         "head_translation_speed_m_s": describe_optional_numbers(
             [
                 sample.head_translation_speed_m_s
                 for sample in samples
                 if sample.head_translation_speed_m_s is not None
             ]
-        ), # Statistics of head translation speeds in scene frame for head samples with valid head_translation_speed_m_s
+        ),
         "head_forward_angle_step_deg": describe_optional_numbers(
             [
                 sample.head_forward_angle_step_deg
                 for sample in samples
                 if sample.head_forward_angle_step_deg is not None
             ]
-        ), # Statistics of head forward direction angle steps in degrees for head samples with valid head_forward_angle_step_deg
+        ),
         "head_rotation_angle_step_deg": describe_optional_numbers(
             [
                 sample.head_rotation_angle_step_deg
                 for sample in samples
                 if sample.head_rotation_angle_step_deg is not None
             ]
-        ), # Statistics of head rotation angle steps in degrees for head samples with valid head_rotation_angle_step_deg
+        ),
         "head_rotation_speed_deg_s": describe_optional_numbers(
             [
                 sample.head_rotation_speed_deg_s
                 for sample in samples
                 if sample.head_rotation_speed_deg_s is not None
             ]
-        ), # Statistics of head rotation speeds in degrees per second for head samples with valid head_rotation_speed_deg_s
+        ),
     }
 
 
@@ -464,8 +590,8 @@ def read_head_samples_csv(path: str | Path) -> list[HeadSample]:
 def head_sample_from_csv_row(row: dict[str, str]) -> HeadSample:
     """Parse one CSV row.
 
-    Old CSVs are still accepted; missing newer fields fall back to None so that
-    downstream event code can continue reading older exports.
+    Missing newer fields map to None so old exploratory exports can still be
+    inspected. Analyses that require the full schema validate it separately.
     """
 
     return HeadSample(

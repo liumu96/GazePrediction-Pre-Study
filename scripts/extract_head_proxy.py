@@ -6,7 +6,7 @@ queries the nearest ADT pose on those timestamps, and writes a `head_samples.csv
 plus a lightweight `head_summary.json`.
 
 zh-CN:
-第一版 event analysis 不从 skeleton 提 head，而是直接用 device/CPF pose 作为
+当前 head feature 不从 skeleton 提 head，而是直接用 device/CPF pose 作为
 head proxy。这样 head 和当前 gaze 的 CPF / Scene 链天然对齐。
 """
 
@@ -23,10 +23,11 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 from adt_sandbox.config import load_dotenv  # noqa: E402
 from adt_sandbox.gaze import read_samples_csv  # noqa: E402
 from adt_sandbox.head import (  # noqa: E402
-    add_temporal_head_context,
+    HEAD_FIELD_COORDINATE_FRAMES,
+    HEAD_FIELD_DEFINITIONS,
     default_head_csv_path,
     default_head_summary_json_path,
-    extract_head_sample,
+    extract_head_samples_at_timestamps,
     summarize_head_samples,
     write_head_samples_csv,
     write_head_summary_json,
@@ -71,11 +72,10 @@ def main() -> None:
     output_csv = args.output_csv or default_head_csv_path(providers.sequence_path.name)
     summary_json = default_head_summary_json_path(output_csv)
 
-    head_samples = [
-        extract_head_sample(providers.gt_provider, sample.query_timestamp_ns)
-        for sample in gaze_samples
-    ]
-    head_samples = add_temporal_head_context(head_samples)
+    head_samples = extract_head_samples_at_timestamps(
+        providers.gt_provider,
+        [sample.query_timestamp_ns for sample in gaze_samples],
+    )
     write_head_samples_csv(output_csv, head_samples)
 
     summary = summarize_head_samples(head_samples)
@@ -87,81 +87,8 @@ def main() -> None:
             "input_gaze_csv": str(gaze_csv),
             "output_csv": str(output_csv),
             "head_proxy_source": "device_pose_cpf",
-            "field_coordinate_frames": {
-                "query_timestamp_ns": "device_time_ns",
-                "pose_dt_ns": "device_time_ns_delta",
-                "head_origin_scene_x_m": "adt_scene_frame_m",
-                "head_origin_scene_y_m": "adt_scene_frame_m",
-                "head_origin_scene_z_m": "adt_scene_frame_m",
-                "head_right_scene_unit_x": "adt_scene_frame_unit_direction",
-                "head_right_scene_unit_y": "adt_scene_frame_unit_direction",
-                "head_right_scene_unit_z": "adt_scene_frame_unit_direction",
-                "head_up_scene_unit_x": "adt_scene_frame_unit_direction",
-                "head_up_scene_unit_y": "adt_scene_frame_unit_direction",
-                "head_up_scene_unit_z": "adt_scene_frame_unit_direction",
-                "head_forward_scene_unit_x": "adt_scene_frame_unit_direction",
-                "head_forward_scene_unit_y": "adt_scene_frame_unit_direction",
-                "head_forward_scene_unit_z": "adt_scene_frame_unit_direction",
-                "head_rot_scene_r00": "rotation_matrix_scene_from_cpf",
-                "head_rot_scene_r01": "rotation_matrix_scene_from_cpf",
-                "head_rot_scene_r02": "rotation_matrix_scene_from_cpf",
-                "head_rot_scene_r10": "rotation_matrix_scene_from_cpf",
-                "head_rot_scene_r11": "rotation_matrix_scene_from_cpf",
-                "head_rot_scene_r12": "rotation_matrix_scene_from_cpf",
-                "head_rot_scene_r20": "rotation_matrix_scene_from_cpf",
-                "head_rot_scene_r21": "rotation_matrix_scene_from_cpf",
-                "head_rot_scene_r22": "rotation_matrix_scene_from_cpf",
-                "translation_scene_dx_m": "adt_scene_frame_m",
-                "translation_scene_dy_m": "adt_scene_frame_m",
-                "translation_scene_dz_m": "adt_scene_frame_m",
-                "translation_prev_head_dx_m": "previous_head_frame_m",
-                "translation_prev_head_dy_m": "previous_head_frame_m",
-                "translation_prev_head_dz_m": "previous_head_frame_m",
-                "origin_step_m": "adt_scene_frame_m",
-                "head_translation_speed_m_s": "adt_scene_frame_m_per_s",
-                "relative_rot_prev_to_cur_r00": "rotation_matrix_previous_head_to_current_head",
-                "relative_rot_prev_to_cur_r01": "rotation_matrix_previous_head_to_current_head",
-                "relative_rot_prev_to_cur_r02": "rotation_matrix_previous_head_to_current_head",
-                "relative_rot_prev_to_cur_r10": "rotation_matrix_previous_head_to_current_head",
-                "relative_rot_prev_to_cur_r11": "rotation_matrix_previous_head_to_current_head",
-                "relative_rot_prev_to_cur_r12": "rotation_matrix_previous_head_to_current_head",
-                "relative_rot_prev_to_cur_r20": "rotation_matrix_previous_head_to_current_head",
-                "relative_rot_prev_to_cur_r21": "rotation_matrix_previous_head_to_current_head",
-                "relative_rot_prev_to_cur_r22": "rotation_matrix_previous_head_to_current_head",
-                "head_forward_angle_step_deg": "scene_frame_angle_deg",
-                "head_rotation_angle_step_deg": "relative_rotation_angle_deg",
-                "head_rotation_speed_deg_s": "relative_rotation_angle_deg_per_s",
-            },
-            "field_definitions": {
-                "head_proxy_source": (
-                    "Device pose plus CPF calibration, used as the first head-motion "
-                    "proxy before introducing skeleton-based head signals."
-                ),
-                "head_origin_scene_xyz": "Scene-frame CPF origin.",
-                "head_right_scene_unit_xyz": "Scene-frame CPF +X unit axis.",
-                "head_up_scene_unit_xyz": "Scene-frame CPF +Y unit axis.",
-                "head_forward_scene_unit_xyz": (
-                    "Scene-frame unit forward direction obtained by transforming "
-                    "the CPF +Z axis."
-                ),
-                "head_rot_scene_rij": (
-                    "Entries of the Scene-from-CPF rotation matrix. Columns correspond "
-                    "to CPF right / up / forward axes expressed in Scene frame."
-                ),
-                "translation_scene_dxyz_m": (
-                    "Frame-to-frame translation in Scene frame between consecutive valid "
-                    "head samples."
-                ),
-                "translation_prev_head_dxyz_m": (
-                    "Frame-to-frame translation expressed in the previous valid head frame."
-                ),
-                "relative_rot_prev_to_cur_rij": (
-                    "Rotation matrix from the previous valid head frame to the current head frame."
-                ),
-                "head_rotation_angle_step_deg": (
-                    "Total relative rotation magnitude between consecutive valid head samples."
-                ),
-            },
+            "field_coordinate_frames": HEAD_FIELD_COORDINATE_FRAMES,
+            "field_definitions": HEAD_FIELD_DEFINITIONS,
         }
     )
     write_head_summary_json(summary_json, summary)
