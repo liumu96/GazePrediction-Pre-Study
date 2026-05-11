@@ -225,6 +225,28 @@ python scripts/analyze_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze
 
 - [docs/head_gaze_relationship_analysis.md](docs/head_gaze_relationship_analysis.md)
 
+如果目标是指导 SparseGaze 模型设计，不要只看 raw head-gaze correlation。
+当前已经补充 SparseGaze-oriented head utility diagnostics：用 sparse-anchor
+residual、lead-lag、current head vs head history 来判断 head 对 missing gaze
+恢复是否真的有用。
+
+```bash
+python scripts/analyze_sparsegaze_head_utility.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+python scripts/report_sparsegaze_head_utility.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+```
+
+生成：
+
+- `batch_sparsegaze_head_utility_summary.csv`
+- `batch_sparsegaze_head_utility_lead_lag.csv`
+- `batch_sparsegaze_head_utility_aggregate.csv`
+- `batch_sparsegaze_head_utility_lead_lag_aggregate.csv`
+- [docs/sparsegaze_head_utility_report.md](docs/sparsegaze_head_utility_report.md)
+
+分析计划和方法细节见：
+
+- [docs/sparsegaze_head_utility_analysis_plan.md](docs/sparsegaze_head_utility_analysis_plan.md)
+
 如果要进一步分析 Scene/world gaze dynamics 和 head motion 的关系，先保证
 scene-direction event 已经生成，再运行：
 

@@ -400,6 +400,19 @@ def build_markdown_report(
         "fixation labels in this report."
     )
     lines.append("")
+    lines.append(
+        "Coordinate-frame audit: this report does not compare CPF gaze direction with CPF head forward "
+        "direction. CPF head forward would be constant by construction. CPF sections compare local "
+        "eye-in-head gaze dynamics with inter-frame head motion (`R_{t-1}^{-1} R_t`, rotation speed, "
+        "and related signed rotation-vector components). Scene geometry is the only place where "
+        "`head_forward_scene_unit` is used as a direction."
+    )
+    lines.append("")
+    lines.append(
+        "`head_translation_speed_m_s` is a scalar Scene-origin displacement speed. It is not a CPF "
+        "translation direction; the local directional translation feature is `translation_prev_head_*`."
+    )
+    lines.append("")
     lines.append("Core quantities:")
     lines.append("")
     lines.append("- `local_angle_step_deg = angle(g_t-1^cpf, g_t^cpf)`")

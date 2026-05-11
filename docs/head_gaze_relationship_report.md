@@ -24,6 +24,17 @@ This report summarizes GT head-gaze relationship analysis over the extracted ADT
 
 CPF-local gaze dynamics are computed from `gaze_dir_cpf_unit_xyz`, while scene geometry uses `gaze_dir_scene_unit_xyz` and `head_forward_scene_unit`. The CPF dynamics are not converted into fixation labels in this report.
 
+Coordinate-frame audit: this report does not compare CPF gaze direction with CPF
+head forward direction. CPF head forward would be constant by construction. CPF
+sections compare local eye-in-head gaze dynamics with inter-frame head motion
+(`R_{t-1}^{-1} R_t`, rotation speed, and related signed rotation-vector
+components). Scene geometry is the only place where `head_forward_scene_unit` is
+used as a direction.
+
+`head_translation_speed_m_s` is a scalar Scene-origin displacement speed. It is
+not a CPF translation direction; the local directional translation feature is
+`translation_prev_head_*`.
+
 Core quantities:
 
 - `local_angle_step_deg = angle(g_t-1^cpf, g_t^cpf)`
@@ -167,4 +178,3 @@ The lagged rotation relation remains positive but is weaker than the same-step r
 - The report is based on correlation and stratification, not causal inference.
 - Scene-direction event detection is implemented separately; object-level fixation detection is not implemented here.
 - CPF dynamics should be used as auxiliary features, not as final event labels.
-

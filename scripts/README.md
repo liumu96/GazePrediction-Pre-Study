@@ -50,6 +50,12 @@
   和 head motion 的关系。
 - `report_scene_head_gaze_relationship.py`: generate the Scene-level head-gaze
   report and figures from `batch_scene_head_gaze_analysis_summary.csv`。
+- `analyze_sparsegaze_head_utility.py`: run SparseGaze-oriented diagnostics from
+  existing gaze/head/event CSVs。它模拟 sparse gaze anchors，比较
+  hold-last / linear interpolation residual，并检查 current head 与 head
+  history 是否解释 missing-gaze residual。
+- `report_sparsegaze_head_utility.py`: generate the SparseGaze head utility
+  markdown report and figures from the batch utility CSVs。
 - `visualize_gaze_outputs.py`: regenerate visualizations from an existing gaze
   CSV and a selected row window。它会读取已有 CSV，再只为当前窗口打开 ADT
   provider 生成 scanpath、scene_rays、overlay frames 和 overlay video。
@@ -167,6 +173,16 @@ python scripts/report_scene_head_gaze_relationship.py --reports-dir /mnt/d/Spars
 这一步读取 scene-direction event outputs，不替代 CPF head-gaze report，而是回答：
 最终 world gaze 是否随 head motion 变化，以及 scene fixation / transition 下的
 head-gaze dynamics 是否不同。
+
+如果要分析 head 对 SparseGaze missing-gaze recovery 是否有实际帮助：
+
+```bash
+python scripts/analyze_sparsegaze_head_utility.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+python scripts/report_sparsegaze_head_utility.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+```
+
+这一步输出 sparse-anchor residual、lead-lag、current head vs head history 的
+诊断结果，报告见 `docs/sparsegaze_head_utility_report.md`。
 
 如果已经有 CSV，只想重新调可视化参数：
 

@@ -234,14 +234,24 @@ event 后续单独设计。
   - join scene event labels、Scene gaze dynamics、CPF-local dynamics 和 head motion
   - 比较 scene `fixation` / `transition` 下的 head-gaze dynamics
   - 生成 `docs/scene_head_gaze_relationship_report.md`
+- `sparsegaze_head_utility.py` 与 `analyze_sparsegaze_head_utility.py` 已实现：
+  - 模拟 sparse gaze anchors，比较 hold-last / linear interpolation residual
+  - 分析 residual 是否能被 current head / head history 解释
+  - 做 head motion 与 CPF/Scene gaze dynamics 的 lead-lag correlation
+  - 生成 `docs/sparsegaze_head_utility_report.md`
 
 ## Immediate Next Step / 下一步
 
 gaze-first 路径已经先跑通。当前更合理的顺序是：
 
-1. 后续真正要做 object-level event 时，单独设计 object/target pipeline：
+1. 先 review `docs/sparsegaze_head_utility_report.md`，把结论转成下一版
+   SparseGaze 模型/实验设定：
+   - 是否保留 current head
+   - 是否增加 head history / cumulative head motion
+   - 是否按 anchor gap 或 Scene event 分支分析误差
+2. 后续真正要做 object-level event 时，单独设计 object/target pipeline：
    - predictor-facing error analysis
    - object / task context 对接
    - object-level fixation labels
-2. 根据 CPF/Scene head-gaze reports，整理 SparseGaze 侧应该保留的 head feature
+3. 根据 CPF/Scene head-gaze reports，整理 SparseGaze 侧应该保留的 head feature
    和 event-aware 分析问题。

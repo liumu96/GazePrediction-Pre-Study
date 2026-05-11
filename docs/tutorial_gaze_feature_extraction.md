@@ -540,11 +540,14 @@ Reference-frame scanpath：
 
 当前更合理的后续顺序是：
 
-1. 如果需要更强的语义解释，再进入 object-level event：引入 object
+1. 先 review `docs/sparsegaze_head_utility_report.md`。这一步已经完成
+   SparseGaze-oriented head utility analysis：lead-lag、sparse-anchor residual、
+   current head vs head history、event-conditioned head gain。
+2. 如果需要更强的语义解释，再进入 object-level event：引入 object
    hit、scene intersection、object-local frame 或 AOI，把“方向稳定”升级成
    “稳定看同一个目标”。
-2. 根据 SparseGaze 的建模问题，继续使用 CPF-local dynamics、Scene dynamics 和
+3. 根据 SparseGaze 的建模问题，继续使用 CPF-local dynamics、Scene dynamics 和
    head dynamics 做模型输入/误差分析；不要把 CPF dynamics 直接阈值化成最终
    fixation label。
-3. 如果后续需要更强的 scene context，再扩展 skeleton/object/mesh 可视化和 pose
+4. 如果后续需要更强的 scene context，再扩展 skeleton/object/mesh 可视化和 pose
    interpolation。
