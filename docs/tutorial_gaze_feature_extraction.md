@@ -194,6 +194,31 @@ python scripts/compute_gaze_dynamics_features.py --reports-dir /mnt/d/SparseGaze
 
 - `docs/gaze_event_analysis_notes.md`
 
+如果后面需要第一版 scene-direction event labels，运行：
+
+```bash
+python scripts/detect_scene_gaze_events.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+```
+
+这一步基于 `gaze_dir_scene_unit_xyz`，输出 `*_scene_gaze_frame_labels.csv`
+和 `*_scene_gaze_event_segments.csv`。
+
+当前状态：`/mnt/d/SparseGaze/ADT-Gaze` 已经完成全量 scene-direction event
+导出，`batch_scene_gaze_event_summary.csv` 已生成。
+
+如果要检查某个 sequence 的某段 event label：
+
+```bash
+python scripts/visualize_scene_gaze_events.py \
+  Apartment_release_decoration_skeleton_seq131_M1292 \
+  --reports-dir /mnt/d/SparseGaze/ADT-Gaze \
+  --start-frame 0 \
+  --end-frame 600
+```
+
+这一步只读取 scene event CSV，输出 timeline 图，不重新打开 ADT provider。
+当前已经完成至少一个窗口级 timeline 抽查。
+
 ## Re-visualize Existing CSV / 复用已有 CSV 重新可视化
 
 如果已经用 `extract_gaze_samples.py` 生成过 CSV，后面想围绕一个 event/window
@@ -461,28 +486,65 @@ Reference-frame scanpath：
 
 ## Current Limitations / 当前限制
 
-- 目前 gaze-first extraction、批量提取和批量质量汇总都已经有脚本入口；
-  但还没有进入 event / fixation / object-aware analysis。
+- gaze-first extraction、head proxy extraction、CPF-local dynamics、head-gaze
+  continuous relationship analysis、scene-direction event labels 都已经有脚本入口。
+- scene-direction event 是当前第一版 event label；它回答 gaze direction 在
+  Scene/world 中是否稳定，但仍然不是 object-level fixation。
 - pose 使用 nearest timestamp，还没有实现 interpolation comparison。
 - reference-frame scanpath 适合短时间、受控事件窗口的可视化对比，但还不是
-  最终 fixation feature；正式分析仍应考虑 Scene/object/mesh 等稳定参考系。
-- 3D 图没有叠加 mesh、object boxes、skeleton，因此只能看 ray 的粗略方向。
+  最终 fixation feature；object-level fixation 仍需要 object hit / scene
+  intersection / mesh 或 object-local frame。
+- 3D gaze/head 图没有叠加 mesh、object boxes、skeleton，因此只能看 ray 和
+  head forward 的粗略几何关系。
 - 当前没有直接比较 ADT `eyegaze.csv` 与 MPS `general_eye_gaze.csv`。
+
+## Current Status / 当前状态
+
+已经完成：
+
+1. Gaze extraction：`extract_gaze_samples.py` 和
+   `batch_extract_gaze_samples.py`。
+2. Gaze quality summary：`check_gaze_quality.py`。34 个 sequence 的质量检查
+   结果显示整体质量很好，当前没有 flagged sequence。
+3. Gaze window visualization：`visualize_gaze_outputs.py`，支持 RGB overlay、
+   reference-frame scanpath、Scene-frame rays 和 overlay video。
+4. Head proxy extraction：`extract_head_proxy.py` 和
+   `batch_extract_head_proxy.py`。当前 head proxy 基于 `device pose + CPF`，
+   不从 skeleton head joint 提取。
+5. CPF-local gaze dynamics：`compute_gaze_dynamics_features.py`。这一层只输出
+   continuous features，不再生成 CPF-based fixation labels。
+6. Head-gaze relationship analysis：`analyze_head_gaze_relationship.py` 和
+   `report_head_gaze_relationship.py`。
+7. Scene-direction event labels：`detect_scene_gaze_events.py`，输出
+   Scene-frame `fixation` / `transition` / `invalid`。当前 D 盘全量数据已经
+   重新导出。
+8. Scene-level head-gaze relationship analysis：
+   `analyze_scene_head_gaze_relationship.py` 和
+   `report_scene_head_gaze_relationship.py`。
+9. Scene event timeline visualization：`visualize_scene_gaze_events.py`。
+   当前已经完成窗口级抽查。
+10. Gaze/head 3D viewer：`notebooks/02_gaze_head_scene_viewer.ipynb` 和
+   `notebooks/04_gaze_head_scene_viewer_interactive.ipynb`。
+
+还没有完成：
+
+1. `notebooks/01_gaze_feature_extraction.ipynb` 没有实际创建；当前已经由脚本、
+   文档和后续 viewer notebook 覆盖了大部分功能。
+2. Object-level fixation 还没有实现。当前 scene-direction event 只判断世界方向
+   是否稳定，还没有判断 gaze 是否稳定落在同一个 object / surface / AOI。
+3. Pose interpolation comparison 还没有实现。
+4. Skeleton / object boxes / mesh 还没有叠加到当前 3D gaze/head viewer 中。
+5. ADT `eyegaze.csv` 与 MPS `general_eye_gaze.csv` 还没有直接比较。
 
 ## Next Steps / 下一步
 
-建议按这个顺序继续：
+当前更合理的后续顺序是：
 
-1. 先运行 `scripts/check_gaze_quality.py`，筛出“好 / 中 / 差”三类 sequence。
-2. 选择这三类 sequence 各一个短窗口做可视化复查，确认 sequence-level
-   quality summary 和实际 overlay/scanpath/scene-ray 是否一致。
-3. 写 `notebooks/01_gaze_feature_extraction.ipynb`，读取 CSV、summary 和按需
-   生成的 figures，做交互式检查。
-4. 为 fixation 分析设计真正的 scanpath 表示：先把 gaze ray 投到稳定参考系，
-   例如 Scene frame 中的墙面/桌面、object mesh、3D bounding box，或某个物体的
-   local coordinate frame，再在该参考系上连接 fixation/gaze points。
-5. 在 event analysis 阶段补充 device/CPF origin 的上下文图，例如
-   `origin_xyz_vs_time`、`origin_xy_topdown`、`origin_xz_sideview`，
-   用来区分 gaze 变化和 ego-motion 的贡献；这类图先不作为当前默认输出。
-6. 扩展 pose interpolation，再把 skeleton/object boxes 叠加到同一
-   Scene-frame visualization。
+1. 如果需要更强的语义解释，再进入 object-level event：引入 object
+   hit、scene intersection、object-local frame 或 AOI，把“方向稳定”升级成
+   “稳定看同一个目标”。
+2. 根据 SparseGaze 的建模问题，继续使用 CPF-local dynamics、Scene dynamics 和
+   head dynamics 做模型输入/误差分析；不要把 CPF dynamics 直接阈值化成最终
+   fixation label。
+3. 如果后续需要更强的 scene context，再扩展 skeleton/object/mesh 可视化和 pose
+   interpolation。

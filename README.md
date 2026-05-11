@@ -225,6 +225,22 @@ python scripts/analyze_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze
 
 - [docs/head_gaze_relationship_analysis.md](docs/head_gaze_relationship_analysis.md)
 
+如果要进一步分析 Scene/world gaze dynamics 和 head motion 的关系，先保证
+scene-direction event 已经生成，再运行：
+
+```bash
+python scripts/analyze_scene_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+python scripts/report_scene_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+```
+
+生成：
+
+- `*_scene_head_gaze_analysis_rows.csv`
+- `*_scene_head_gaze_analysis_summary.json`
+- `batch_scene_head_gaze_analysis_summary.csv`
+- `batch_scene_head_gaze_analysis_report.json`
+- [docs/scene_head_gaze_relationship_report.md](docs/scene_head_gaze_relationship_report.md)
+
 如果要把 whole-sequence CPF-local gaze dynamics feature 也跑出来：
 
 ```bash
@@ -238,7 +254,38 @@ python scripts/compute_gaze_dynamics_features.py --reports-dir /mnt/d/SparseGaze
 - `batch_gaze_dynamics_summary.csv`
 
 注意：这一步不再生成 CPF-based fixation labels。CPF velocity / dispersion
-保留为辅助 dynamics features；真正的 scene/object-level fixation 需要后续单独定义。
+保留为辅助 dynamics features；scene-direction event 由下一步单独生成。
+
+如果要生成第一版 scene-direction event labels：
+
+```bash
+python scripts/detect_scene_gaze_events.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+```
+
+它基于 `gaze_dir_scene_unit_xyz` 计算 Scene-frame angular velocity / dispersion，
+并保存：
+
+- `*_scene_gaze_event_features.csv`
+- `*_scene_gaze_frame_labels.csv`
+- `*_scene_gaze_event_segments.csv`
+- `*_scene_gaze_event_summary.json`
+- `batch_scene_gaze_event_summary.csv`
+
+默认判定规则是：scene velocity 和 scene dispersion 同时低于阈值，且持续时间
+超过最小时长，才标为 `fixation`。
+
+如果要检查某个 sequence / frame window 的 label，可以画 event timeline：
+
+```bash
+python scripts/visualize_scene_gaze_events.py \
+  Apartment_release_decoration_skeleton_seq131_M1292 \
+  --reports-dir /mnt/d/SparseGaze/ADT-Gaze \
+  --start-frame 0 \
+  --end-frame 600
+```
+
+输出默认写到 `outputs/figures/scene_gaze_events/`，包含最终 label、scene
+velocity 和 scene dispersion 三条时间轴。
 
 ## Working Conventions
 

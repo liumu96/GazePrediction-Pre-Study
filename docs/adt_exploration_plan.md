@@ -183,8 +183,8 @@ Alignment rules：
 ## Phase 6: Gaze Dynamics and Head-Gaze Analysis / gaze dynamics 与 head-gaze 分析
 
 目标：保留 CPF-local gaze dynamics 作为连续特征，并分析它和 head motion 的关系。
-CPF-based fixation labels 已从主线移除；真正的 scene/object-level event detection
-后续单独设计。
+CPF-based fixation labels 已从主线移除；scene-direction event 已实现，object-level
+event 后续单独设计。
 
 主文档：
 
@@ -198,16 +198,21 @@ CPF-based fixation labels 已从主线移除；真正的 scene/object-level even
 - CPF-thresholded fixation labels 不作为最终 event label
 - `head.py` 是独立 head feature layer
 - head-gaze analysis 不读取 CPF fixation labels
-- scene/object-level fixation 后续另起 pipeline
+- scene-direction event 已单独实现
+- object-level fixation 后续另起 pipeline
 
 计划产物：
 
 - `src/adt_sandbox/head.py`
 - `src/adt_sandbox/gaze_dynamics.py`
+- `src/adt_sandbox/scene_gaze_events.py`
 - `src/adt_sandbox/head_gaze_analysis.py`
+- `src/adt_sandbox/scene_head_gaze_analysis.py`
 - `scripts/extract_head_proxy.py`
 - `scripts/compute_gaze_dynamics_features.py`
+- `scripts/detect_scene_gaze_events.py`
 - `scripts/analyze_head_gaze_relationship.py`
+- `scripts/analyze_scene_head_gaze_relationship.py`
 - `notebooks/04_gaze_head_scene_viewer_interactive.ipynb`
 
 当前状态：
@@ -215,20 +220,28 @@ CPF-based fixation labels 已从主线移除；真正的 scene/object-level even
 - `head.py`、`extract_head_proxy.py`、`batch_extract_head_proxy.py` 已实现
 - `head_samples.csv` 当前同时包含绝对 Scene pose 和相对运动特征
 - `compute_gaze_dynamics_features.py` 已实现
+- `detect_scene_gaze_events.py` 已实现：
+  - 基于 `gaze_dir_scene_unit_xyz`
+  - 输出 scene-direction `fixation` / `transition` / `invalid`
+  - 阈值参数化，默认 `40 deg/s`、`2.5 deg`、`133 ms`
+- `/mnt/d/SparseGaze/ADT-Gaze` 已完成全量 scene-direction event 导出
+- `visualize_scene_gaze_events.py` 已实现并完成窗口级 timeline 抽查
 - `head_gaze_analysis.py` 与 `analyze_head_gaze_relationship.py` 已实现：
   - 从已有 gaze/head CSV 直接生成逐帧 joined table
   - 量化 Scene 几何关系、local 动态关系、head rotation strata
   - 以及 current head motion 对下一步 gaze change 的相关性
+- `scene_head_gaze_analysis.py` 与 `analyze_scene_head_gaze_relationship.py` 已实现：
+  - join scene event labels、Scene gaze dynamics、CPF-local dynamics 和 head motion
+  - 比较 scene `fixation` / `transition` 下的 head-gaze dynamics
+  - 生成 `docs/scene_head_gaze_relationship_report.md`
 
 ## Immediate Next Step / 下一步
 
 gaze-first 路径已经先跑通。当前更合理的顺序是：
 
-1. 基于已有 `gaze_samples.csv`、`head_samples.csv` 做 head-gaze relationship analysis：
-   - `scripts/analyze_head_gaze_relationship.py`
-2. 如需导出 CPF-local dynamics feature table：
-   - `scripts/compute_gaze_dynamics_features.py`
-3. 后续真正要做 event 时，单独设计 scene/object-level event pipeline：
+1. 后续真正要做 object-level event 时，单独设计 object/target pipeline：
    - predictor-facing error analysis
    - object / task context 对接
-   - scene/object-level fixation labels
+   - object-level fixation labels
+2. 根据 CPF/Scene head-gaze reports，整理 SparseGaze 侧应该保留的 head feature
+   和 event-aware 分析问题。

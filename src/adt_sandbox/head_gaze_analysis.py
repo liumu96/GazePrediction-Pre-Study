@@ -26,7 +26,7 @@ import numpy as np
 
 from .gaze_dynamics import compute_gaze_dynamics_features, describe_optional_numbers
 from .gaze import GazeSample
-from .head import HeadSample
+from .head import HeadSample, relative_rotation_prev_to_cur_matrix
 
 
 @dataclass(frozen=True)
@@ -46,6 +46,13 @@ class HeadGazeAnalysisRow:
     next_local_velocity_deg_s: float | None
     next_abs_delta_yaw_rad: float | None
     next_abs_delta_pitch_rad: float | None
+    head_rotvec_prev_head_x_rad: float | None
+    head_rotvec_prev_head_y_rad: float | None
+    head_rotvec_prev_head_z_rad: float | None
+    head_rotvec_prev_head_x_deg_s: float | None
+    head_rotvec_prev_head_y_deg_s: float | None
+    head_rotvec_prev_head_z_deg_s: float | None
+    gaze_head_motion_alignment_2d: float | None
     head_translation_speed_m_s: float | None
     head_forward_angle_step_deg: float | None
     head_rotation_angle_step_deg: float | None
@@ -102,6 +109,18 @@ def build_head_gaze_analysis_rows(
         zip(feature_rows, gaze_samples, head_samples)
     ):
         next_feature = feature_rows[index + 1] if index + 1 < len(feature_rows) else None
+        head_rotvec = rotation_vector_from_matrix(
+            relative_rotation_prev_to_cur_matrix(head_sample)
+        )
+        head_rotvec_deg_s = signed_angular_velocity_deg_s(
+            head_rotvec,
+            feature_row.dt_s,
+        )
+        gaze_head_motion_alignment_2d = angular_plane_alignment(
+            delta_yaw=feature_row.delta_yaw_rad,
+            delta_pitch=feature_row.delta_pitch_rad,
+            head_rotvec=head_rotvec,
+        )
         rows.append(
             HeadGazeAnalysisRow(
                 query_timestamp_ns=feature_row.query_timestamp_ns,
@@ -125,6 +144,22 @@ def build_head_gaze_analysis_rows(
                     if next_feature is not None
                     else None
                 ),
+                head_rotvec_prev_head_x_rad=_vector_component_or_none(head_rotvec, 0),
+                head_rotvec_prev_head_y_rad=_vector_component_or_none(head_rotvec, 1),
+                head_rotvec_prev_head_z_rad=_vector_component_or_none(head_rotvec, 2),
+                head_rotvec_prev_head_x_deg_s=_vector_component_or_none(
+                    head_rotvec_deg_s,
+                    0,
+                ),
+                head_rotvec_prev_head_y_deg_s=_vector_component_or_none(
+                    head_rotvec_deg_s,
+                    1,
+                ),
+                head_rotvec_prev_head_z_deg_s=_vector_component_or_none(
+                    head_rotvec_deg_s,
+                    2,
+                ),
+                gaze_head_motion_alignment_2d=gaze_head_motion_alignment_2d,
                 head_translation_speed_m_s=feature_row.head_translation_speed_m_s,
                 head_forward_angle_step_deg=feature_row.head_forward_angle_step_deg,
                 head_rotation_angle_step_deg=head_sample.head_rotation_angle_step_deg,
@@ -195,6 +230,18 @@ def summarize_head_gaze_analysis_rows(
             "head_rotation_speed_deg_s": describe_optional_numbers(
                 [row.head_rotation_speed_deg_s for row in valid_rows]
             ),
+            "head_rotvec_prev_head_x_deg_s": describe_optional_numbers(
+                [row.head_rotvec_prev_head_x_deg_s for row in valid_rows]
+            ),
+            "head_rotvec_prev_head_y_deg_s": describe_optional_numbers(
+                [row.head_rotvec_prev_head_y_deg_s for row in valid_rows]
+            ),
+            "head_rotvec_prev_head_z_deg_s": describe_optional_numbers(
+                [row.head_rotvec_prev_head_z_deg_s for row in valid_rows]
+            ),
+            "gaze_head_motion_alignment_2d": describe_optional_numbers(
+                [row.gaze_head_motion_alignment_2d for row in valid_rows]
+            ),
         },
         "correlations": {
             "current_local_velocity_vs_head_rotation_speed": pearson_corr(
@@ -213,6 +260,22 @@ def summarize_head_gaze_analysis_rows(
                 [row.abs_delta_pitch_rad for row in valid_rows],
                 [row.head_rotation_speed_deg_s for row in valid_rows],
             ),
+            "signed_delta_yaw_vs_head_rotvec_y": pearson_corr(
+                [row.delta_yaw_rad for row in valid_rows],
+                [row.head_rotvec_prev_head_y_rad for row in valid_rows],
+            ),
+            "signed_delta_pitch_vs_head_rotvec_x": pearson_corr(
+                [row.delta_pitch_rad for row in valid_rows],
+                [row.head_rotvec_prev_head_x_rad for row in valid_rows],
+            ),
+            "abs_delta_yaw_vs_abs_head_rotvec_y": pearson_corr(
+                [row.abs_delta_yaw_rad for row in valid_rows],
+                [_abs_or_none(row.head_rotvec_prev_head_y_rad) for row in valid_rows],
+            ),
+            "abs_delta_pitch_vs_abs_head_rotvec_x": pearson_corr(
+                [row.abs_delta_pitch_rad for row in valid_rows],
+                [_abs_or_none(row.head_rotvec_prev_head_x_rad) for row in valid_rows],
+            ),
             "next_local_velocity_vs_current_head_rotation_speed": pearson_corr(
                 [row.next_local_velocity_deg_s for row in valid_rows],
                 [row.head_rotation_speed_deg_s for row in valid_rows],
@@ -230,6 +293,7 @@ def summarize_head_gaze_analysis_rows(
                 [row.head_rotation_speed_deg_s for row in valid_rows],
             ),
         },
+        "directional_alignment": summarize_directional_alignment(valid_rows),
         "head_rotation_speed_strata": head_rotation_strata,
     }
 
@@ -267,6 +331,24 @@ def summarize_batch_head_gaze_analysis(
             ),
             "next_local_velocity_vs_current_head_translation_speed": describe_optional_numbers(
                 metric("corr_next_local_velocity_vs_current_head_translation_speed")
+            ),
+            "signed_delta_yaw_vs_head_rotvec_y": describe_optional_numbers(
+                metric("corr_signed_delta_yaw_vs_head_rotvec_y")
+            ),
+            "signed_delta_pitch_vs_head_rotvec_x": describe_optional_numbers(
+                metric("corr_signed_delta_pitch_vs_head_rotvec_x")
+            ),
+            "abs_delta_yaw_vs_abs_head_rotvec_y": describe_optional_numbers(
+                metric("corr_abs_delta_yaw_vs_abs_head_rotvec_y")
+            ),
+            "abs_delta_pitch_vs_abs_head_rotvec_x": describe_optional_numbers(
+                metric("corr_abs_delta_pitch_vs_abs_head_rotvec_x")
+            ),
+            "gaze_head_motion_alignment_2d_mean": describe_optional_numbers(
+                metric("mean_gaze_head_motion_alignment_2d")
+            ),
+            "gaze_head_motion_opposed_fraction": describe_optional_numbers(
+                metric("gaze_head_motion_opposed_fraction")
             ),
         },
         "top_sequences_by_next_step_head_rotation_correlation": [
@@ -391,6 +473,29 @@ def summarize_rotation_strata(
     }
 
 
+def summarize_directional_alignment(rows: Sequence[HeadGazeAnalysisRow]) -> dict[str, Any]:
+    alignments = [
+        float(row.gaze_head_motion_alignment_2d)
+        for row in rows
+        if row.gaze_head_motion_alignment_2d is not None
+        and np.isfinite(row.gaze_head_motion_alignment_2d)
+    ]
+    if not alignments:
+        return {
+            "gaze_head_motion_alignment_2d": describe_optional_numbers([]),
+            "aligned_fraction": None,
+            "opposed_fraction": None,
+            "weak_or_orthogonal_fraction": None,
+        }
+    values = np.asarray(alignments, dtype=np.float64)
+    return {
+        "gaze_head_motion_alignment_2d": describe_optional_numbers(alignments),
+        "aligned_fraction": float(np.mean(values >= 0.5)),
+        "opposed_fraction": float(np.mean(values <= -0.5)),
+        "weak_or_orthogonal_fraction": float(np.mean(np.abs(values) < 0.5)),
+    }
+
+
 def pearson_corr(
     first_values: Sequence[float | None],
     second_values: Sequence[float | None],
@@ -412,10 +517,89 @@ def pearson_corr(
     return float(np.corrcoef(first_array, second_array)[0, 1])
 
 
+def rotation_vector_from_matrix(rotation: np.ndarray | None) -> np.ndarray | None:
+    """Return the axis-angle vector for a relative rotation matrix.
+
+    The input is `R_prev_head_to_current_head`; therefore the returned vector is
+    expressed in the previous head/CPF frame. Its magnitude is the rotation angle
+    in radians and its components preserve signed rotation direction.
+    """
+
+    if rotation is None:
+        return None
+    matrix = np.asarray(rotation, dtype=np.float64)
+    if matrix.shape != (3, 3) or not np.isfinite(matrix).all():
+        return None
+
+    cosine = float(np.clip((np.trace(matrix) - 1.0) / 2.0, -1.0, 1.0))
+    angle = float(np.arccos(cosine))
+    skew_vector = np.asarray(
+        [
+            matrix[2, 1] - matrix[1, 2],
+            matrix[0, 2] - matrix[2, 0],
+            matrix[1, 0] - matrix[0, 1],
+        ],
+        dtype=np.float64,
+    )
+    if angle < 1e-8:
+        return 0.5 * skew_vector
+    sine = float(np.sin(angle))
+    if abs(sine) < 1e-8:
+        return None
+    return (angle / (2.0 * sine)) * skew_vector
+
+
+def signed_angular_velocity_deg_s(
+    rotation_vector_rad: np.ndarray | None,
+    dt_s: float | None,
+) -> np.ndarray | None:
+    if (
+        rotation_vector_rad is None
+        or dt_s is None
+        or dt_s <= 0
+        or not np.isfinite(dt_s)
+    ):
+        return None
+    return np.degrees(rotation_vector_rad / dt_s)
+
+
+def angular_plane_alignment(
+    delta_yaw: float | None,
+    delta_pitch: float | None,
+    head_rotvec: np.ndarray | None,
+) -> float | None:
+    """Cosine similarity between 2D gaze motion and 2D head rotation.
+
+    The gaze vector is `[delta_yaw, delta_pitch]` in CPF angular coordinates.
+    The head vector is `[rotvec_y, rotvec_x]`, i.e. the relative head rotation
+    components most directly corresponding to horizontal and vertical angular
+    axes. Positive values mean the two 2D vectors are similarly directed under
+    this coordinate convention; negative values mean they are opposed.
+    """
+
+    if delta_yaw is None or delta_pitch is None or head_rotvec is None:
+        return None
+    gaze_vec = np.asarray([delta_yaw, delta_pitch], dtype=np.float64)
+    head_vec = np.asarray([head_rotvec[1], head_rotvec[0]], dtype=np.float64)
+    if not np.isfinite(gaze_vec).all() or not np.isfinite(head_vec).all():
+        return None
+    gaze_norm = float(np.linalg.norm(gaze_vec))
+    head_norm = float(np.linalg.norm(head_vec))
+    if gaze_norm <= 0 or head_norm <= 0:
+        return None
+    return float(np.dot(gaze_vec, head_vec) / (gaze_norm * head_norm))
+
+
 def _abs_or_none(value: float | None) -> float | None:
     if value is None or not np.isfinite(value):
         return None
     return abs(float(value))
+
+
+def _vector_component_or_none(vector: np.ndarray | None, index: int) -> float | None:
+    if vector is None or not np.isfinite(vector[index]):
+        return None
+    return float(vector[index])
 
 
 def require_full_head_feature_schema(head_samples: Sequence[HeadSample]) -> None:

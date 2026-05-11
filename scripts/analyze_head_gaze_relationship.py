@@ -14,7 +14,7 @@ Outputs:
 zh-CN:
 这一步的目标只收敛在 GT head-gaze relationship 上，而不是模型设定分析：
 - Scene 几何关系：head 朝向和 gaze 朝向的夹角
-- Local 动态关系：gaze 速度 / 角变化和 head motion 的关系
+- Local 动态关系：gaze 速度 / 角变化方向和 head motion 的关系
 - 辅助时序关系：当前 head motion 和下一帧 gaze change 的 lagged relation
 
 Important:
@@ -114,7 +114,11 @@ def main() -> None:
                 "dispersion_window_frames": args.dispersion_window_frames,
                 "method": {
                     "geometry": "scene-frame gaze/head direction relation",
-                    "dynamics": "local gaze deltas and velocity vs head motion",
+                    "dynamics": "local gaze deltas, velocity, and direction vs head motion",
+                    "directional_analysis": (
+                        "signed yaw/pitch deltas vs signed relative head rotation "
+                        "vector components in the previous head frame"
+                    ),
                     "auxiliary_temporal_proxy": "current head motion vs next-step gaze change lagged correlation",
                     "head_representation": "scene absolute pose + relative head motion",
                     "gaze_representation": "CPF local dynamics + scene direction relation",
@@ -171,6 +175,30 @@ def sequence_batch_row(summary: dict[str, Any]) -> dict[str, Any]:
         ],
         "corr_current_local_velocity_vs_head_translation_speed": summary["correlations"][
             "current_local_velocity_vs_head_translation_speed"
+        ],
+        "corr_signed_delta_yaw_vs_head_rotvec_y": summary["correlations"][
+            "signed_delta_yaw_vs_head_rotvec_y"
+        ],
+        "corr_signed_delta_pitch_vs_head_rotvec_x": summary["correlations"][
+            "signed_delta_pitch_vs_head_rotvec_x"
+        ],
+        "corr_abs_delta_yaw_vs_abs_head_rotvec_y": summary["correlations"][
+            "abs_delta_yaw_vs_abs_head_rotvec_y"
+        ],
+        "corr_abs_delta_pitch_vs_abs_head_rotvec_x": summary["correlations"][
+            "abs_delta_pitch_vs_abs_head_rotvec_x"
+        ],
+        "mean_gaze_head_motion_alignment_2d": summary["directional_alignment"][
+            "gaze_head_motion_alignment_2d"
+        ]["mean"],
+        "gaze_head_motion_aligned_fraction": summary["directional_alignment"][
+            "aligned_fraction"
+        ],
+        "gaze_head_motion_opposed_fraction": summary["directional_alignment"][
+            "opposed_fraction"
+        ],
+        "gaze_head_motion_weak_or_orthogonal_fraction": summary["directional_alignment"][
+            "weak_or_orthogonal_fraction"
         ],
         "corr_next_local_velocity_vs_current_head_rotation_speed": summary["correlations"][
             "next_local_velocity_vs_current_head_rotation_speed"

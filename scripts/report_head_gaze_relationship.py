@@ -10,7 +10,8 @@ Outputs:
 - a markdown report, by default `docs/head_gaze_relationship_report.md`
 
 This report intentionally does not use CPF-derived fixation labels. It describes
-continuous head-gaze dynamics only.
+continuous head-gaze dynamics only, including motion magnitude and motion
+direction.
 """
 
 from __future__ import annotations
@@ -104,6 +105,13 @@ def generate_figures(
     current_rot = numeric_column(rows, "corr_current_local_velocity_vs_head_rotation_speed")
     current_trans = numeric_column(rows, "corr_current_local_velocity_vs_head_translation_speed")
     next_rot = numeric_column(rows, "corr_next_local_velocity_vs_current_head_rotation_speed")
+    signed_yaw = numeric_column(rows, "corr_signed_delta_yaw_vs_head_rotvec_y")
+    signed_pitch = numeric_column(rows, "corr_signed_delta_pitch_vs_head_rotvec_x")
+    abs_yaw = numeric_column(rows, "corr_abs_delta_yaw_vs_abs_head_rotvec_y")
+    abs_pitch = numeric_column(rows, "corr_abs_delta_pitch_vs_abs_head_rotvec_x")
+    aligned_fraction = numeric_column(rows, "gaze_head_motion_aligned_fraction")
+    opposed_fraction = numeric_column(rows, "gaze_head_motion_opposed_fraction")
+    weak_fraction = numeric_column(rows, "gaze_head_motion_weak_or_orthogonal_fraction")
 
     fig, ax = plt.subplots(figsize=(6.2, 4.8))
     ax.boxplot(
@@ -123,6 +131,48 @@ def generate_figures(
     plt.close(fig)
     figure_paths["correlation_distributions"] = path
 
+    fig, ax = plt.subplots(figsize=(7.4, 4.8))
+    ax.boxplot(
+        [signed_yaw, signed_pitch, abs_yaw, abs_pitch],
+        tick_labels=[
+            "signed yaw\nvs head Y",
+            "signed pitch\nvs head X",
+            "|yaw|\nvs |head Y|",
+            "|pitch|\nvs |head X|",
+        ],
+        showmeans=True,
+    )
+    ax.axhline(0.0, linestyle="--", color="gray", linewidth=1.0)
+    ax.set_ylabel("Pearson correlation")
+    ax.set_title("Directional head-gaze component correlations")
+    ax.grid(axis="y", alpha=0.3)
+    path = figure_dir / "directional_component_correlations.png"
+    fig.tight_layout()
+    fig.savefig(path, dpi=200)
+    plt.close(fig)
+    figure_paths["directional_component_correlations"] = path
+
+    fig, ax = plt.subplots(figsize=(6.2, 4.8))
+    means = [
+        float(np.mean(aligned_fraction)),
+        float(np.mean(opposed_fraction)),
+        float(np.mean(weak_fraction)),
+    ]
+    ax.bar(
+        ["aligned", "opposed", "weak/orthogonal"],
+        means,
+        color=["#2ca25f", "#de2d26", "#9ecae1"],
+    )
+    ax.set_ylim(0.0, 1.0)
+    ax.set_ylabel("Mean fraction of valid frames")
+    ax.set_title("2D gaze/head motion alignment categories")
+    ax.grid(axis="y", alpha=0.3)
+    path = figure_dir / "motion_alignment_fractions.png"
+    fig.tight_layout()
+    fig.savefig(path, dpi=200)
+    plt.close(fig)
+    figure_paths["motion_alignment_fractions"] = path
+
     low_velocity = [
         stratum_metric_mean(summary, "low", "local_velocity_deg_s")
         for summary in sequence_summaries.values()
@@ -135,6 +185,13 @@ def generate_figures(
         stratum_metric_mean(summary, "high", "local_velocity_deg_s")
         for summary in sequence_summaries.values()
     ]
+    mean_velocity = [
+        float(summary["dynamics"]["local_velocity_deg_s"]["mean"])
+        for summary in sequence_summaries.values()
+    ]
+    low_velocity_norm = safe_divide_list(low_velocity, mean_velocity)
+    mid_velocity_norm = safe_divide_list(mid_velocity, mean_velocity)
+    high_velocity_norm = safe_divide_list(high_velocity, mean_velocity)
     fig, ax = plt.subplots(figsize=(6.8, 4.8))
     ax.boxplot(
         [low_velocity, mid_velocity, high_velocity],
@@ -150,6 +207,23 @@ def generate_figures(
     fig.savefig(path, dpi=200)
     plt.close(fig)
     figure_paths["local_gaze_velocity_by_head_rotation_stratum"] = path
+
+    fig, ax = plt.subplots(figsize=(6.8, 4.8))
+    ax.boxplot(
+        [low_velocity_norm, mid_velocity_norm, high_velocity_norm],
+        tick_labels=["low", "mid", "high"],
+        showmeans=True,
+    )
+    ax.axhline(1.0, linestyle="--", color="gray", linewidth=1.0)
+    ax.set_ylabel("Group mean / sequence mean")
+    ax.set_xlabel("Within-sequence head rotation speed group")
+    ax.set_title("Normalized local gaze velocity by head-rotation group")
+    ax.grid(axis="y", alpha=0.3)
+    path = figure_dir / "normalized_local_gaze_velocity_by_head_rotation_group.png"
+    fig.tight_layout()
+    fig.savefig(path, dpi=200)
+    plt.close(fig)
+    figure_paths["normalized_local_gaze_velocity_by_head_rotation_group"] = path
 
     x_values = current_rot
     y_values = next_rot
@@ -198,6 +272,14 @@ def build_markdown_report(
     angle_stats = distribution(rows, "median_gaze_head_angle_deg")
     curr_rot_stats = distribution(rows, "corr_current_local_velocity_vs_head_rotation_speed")
     curr_trans_stats = distribution(rows, "corr_current_local_velocity_vs_head_translation_speed")
+    signed_yaw_stats = distribution(rows, "corr_signed_delta_yaw_vs_head_rotvec_y")
+    signed_pitch_stats = distribution(rows, "corr_signed_delta_pitch_vs_head_rotvec_x")
+    abs_yaw_stats = distribution(rows, "corr_abs_delta_yaw_vs_abs_head_rotvec_y")
+    abs_pitch_stats = distribution(rows, "corr_abs_delta_pitch_vs_abs_head_rotvec_x")
+    alignment_stats = distribution(rows, "mean_gaze_head_motion_alignment_2d")
+    aligned_fraction_stats = distribution(rows, "gaze_head_motion_aligned_fraction")
+    opposed_fraction_stats = distribution(rows, "gaze_head_motion_opposed_fraction")
+    weak_fraction_stats = distribution(rows, "gaze_head_motion_weak_or_orthogonal_fraction")
     next_rot_stats = distribution(rows, "corr_next_local_velocity_vs_current_head_rotation_speed")
     next_trans_stats = distribution(rows, "corr_next_local_velocity_vs_current_head_translation_speed")
     curr_rot_values = numeric_column(rows, "corr_current_local_velocity_vs_head_rotation_speed")
@@ -220,9 +302,49 @@ def build_markdown_report(
         stratum_metric_mean(summary, "high", "local_velocity_deg_s")
         for summary in sequence_summaries.values()
     ]
+    sequence_mean_velocity_values = [
+        float(summary["dynamics"]["local_velocity_deg_s"]["mean"])
+        for summary in sequence_summaries.values()
+    ]
+    low_stratum_velocity_norm_values = safe_divide_list(
+        low_stratum_velocity_values,
+        sequence_mean_velocity_values,
+    )
+    mid_stratum_velocity_norm_values = safe_divide_list(
+        mid_stratum_velocity_values,
+        sequence_mean_velocity_values,
+    )
+    high_stratum_velocity_norm_values = safe_divide_list(
+        high_stratum_velocity_values,
+        sequence_mean_velocity_values,
+    )
+    high_minus_low_velocity_values = [
+        high - low
+        for low, high in zip(
+            low_stratum_velocity_values,
+            high_stratum_velocity_values,
+            strict=True,
+        )
+    ]
+    high_minus_low_velocity_norm_values = safe_divide_list(
+        high_minus_low_velocity_values,
+        sequence_mean_velocity_values,
+    )
+    high_low_velocity_ratio_values = safe_divide_list(
+        high_stratum_velocity_values,
+        low_stratum_velocity_values,
+    )
     low_stratum_velocity_stats = describe_values(low_stratum_velocity_values)
     mid_stratum_velocity_stats = describe_values(mid_stratum_velocity_values)
     high_stratum_velocity_stats = describe_values(high_stratum_velocity_values)
+    low_stratum_velocity_norm_stats = describe_values(low_stratum_velocity_norm_values)
+    mid_stratum_velocity_norm_stats = describe_values(mid_stratum_velocity_norm_values)
+    high_stratum_velocity_norm_stats = describe_values(high_stratum_velocity_norm_values)
+    high_minus_low_velocity_stats = describe_values(high_minus_low_velocity_values)
+    high_minus_low_velocity_norm_stats = describe_values(
+        high_minus_low_velocity_norm_values
+    )
+    high_low_velocity_ratio_stats = describe_values(high_low_velocity_ratio_values)
     high_stratum_velocity_gt_low_count = sum(
         1 for low_value, high_value in zip(low_stratum_velocity_values, high_stratum_velocity_values, strict=True)
         if high_value > low_value
@@ -251,15 +373,17 @@ def build_markdown_report(
     lines.append("")
     lines.append(
         "This report summarizes GT head-gaze relationship analysis over the extracted ADT sequences. It no "
-        "longer uses CPF-derived fixation labels. The goal is narrower and cleaner: describe continuous "
-        "relationships among scene gaze/head geometry, CPF-local gaze dynamics, and head motion."
+        "longer uses CPF-derived fixation labels. The goal is to describe continuous relationships among "
+        "scene gaze/head geometry, CPF-local gaze dynamics, and head motion before adding event-conditioned "
+        "analysis."
     )
     lines.append("")
     lines.append("## Research Questions")
     lines.append("")
     lines.append("1. Does head rotation co-vary with CPF-local gaze dynamics within the same 30 Hz timestep?")
     lines.append("2. Is head rotation more informative than head translation for local gaze dynamics?")
-    lines.append("3. Do larger head-rotation regimes contain larger local gaze changes?")
+    lines.append("3. Does head motion explain only gaze-change magnitude, or also gaze-change direction?")
+    lines.append("4. Do larger head-rotation regimes contain larger local gaze changes?")
     lines.append("")
     lines.append("## Inputs")
     lines.append("")
@@ -282,12 +406,25 @@ def build_markdown_report(
     lines.append("- `local_velocity_deg_s = local_angle_step_deg / dt`")
     lines.append("- `window_dispersion_deg = max pairwise CPF angular separation in a centered window`")
     lines.append("- `head_rotation_speed_deg_s = angle(R_{t-1}^{-1} R_t) / dt`")
+    lines.append(
+        "- `head_rotvec_prev_head_*`: signed axis-angle vector of "
+        "`R_{t-1}^{-1} R_t`, expressed in the previous head/CPF frame"
+    )
+    lines.append(
+        "- `gaze_head_motion_alignment_2d = cosine([delta_yaw, delta_pitch], "
+        "[head_rotvec_y, head_rotvec_x])`"
+    )
     lines.append("- `head_translation_speed_m_s = ||p_t - p_{t-1}|| / dt`")
     lines.append("- `gaze_head_angle_deg = angle(gaze_dir_scene_unit, head_forward_scene_unit)`")
     lines.append("")
     lines.append(
         "All correlations are Pearson correlations computed per sequence and then summarized across "
         "sequences. They measure linear association only, not causality or model performance."
+    )
+    lines.append(
+        "The directional metrics use signed CPF angular deltas and signed relative head rotation vector "
+        "components. Their signs are coordinate-frame conventions; the robust question is whether direction "
+        "components carry additional structure beyond speed magnitude."
     )
     lines.append("")
     lines.append("## Coverage")
@@ -338,22 +475,69 @@ def build_markdown_report(
         "small number of sequences. Translation remains close to zero on average."
     )
     lines.append("")
-    lines.append("### Table 2. Head-Rotation Strata Summary")
+    lines.append("### Table 2. Directional Component Summary")
     lines.append("")
     lines.append(
-        "Table 2 stratifies frames by head rotation speed within each sequence. This asks a more direct "
-        "question than correlation alone: when head rotation is larger, are local gaze changes also larger?"
+        "Table 2 addresses the missing direction question. It compares signed gaze angular deltas with "
+        "signed head rotation-vector components in the previous head frame, and also compares absolute "
+        "component magnitudes. Signed correlations test whether motion directions co-vary. Absolute "
+        "component correlations test whether larger component-wise head turns come with larger component-wise "
+        "eye-in-head changes."
     )
     lines.append("")
     lines.append("| Metric | Mean | Median | Min | Max |")
     lines.append("|---|---:|---:|---:|---:|")
     for label, stats in [
-        ("Low-stratum mean local gaze velocity (deg/s)", low_stratum_velocity_stats),
-        ("Mid-stratum mean local gaze velocity (deg/s)", mid_stratum_velocity_stats),
-        ("High-stratum mean local gaze velocity (deg/s)", high_stratum_velocity_stats),
-        ("Low-stratum mean gaze-head angle (deg)", low_stratum_angle_stats),
-        ("Mid-stratum mean gaze-head angle (deg)", mid_stratum_angle_stats),
-        ("High-stratum mean gaze-head angle (deg)", high_stratum_angle_stats),
+        ("corr(signed delta yaw, head rotvec Y)", signed_yaw_stats),
+        ("corr(signed delta pitch, head rotvec X)", signed_pitch_stats),
+        ("corr(|delta yaw|, |head rotvec Y|)", abs_yaw_stats),
+        ("corr(|delta pitch|, |head rotvec X|)", abs_pitch_stats),
+        ("mean 2D gaze/head motion alignment", alignment_stats),
+        ("aligned frame fraction", aligned_fraction_stats),
+        ("opposed frame fraction", opposed_fraction_stats),
+        ("weak/orthogonal frame fraction", weak_fraction_stats),
+    ]:
+        lines.append(
+            f"| {label} | {fmt(stats['mean'])} | {fmt(stats['p50'])} | {fmt(stats['min'])} | {fmt(stats['max'])} |"
+        )
+    lines.append("")
+    lines.append(
+        "The direction-level results should be read separately from the speed results. A strong speed "
+        "correlation with weak signed component correlation means head motion is informative about how much "
+        "local gaze changes, but less deterministic about which way the eyes move. Opposed alignment can "
+        "indicate compensatory eye-in-head motion during head turns, while aligned motion can indicate "
+        "co-moving eye/head behavior under the chosen CPF sign convention."
+    )
+    lines.append("")
+    lines.append("### Figure 2. Directional Component Correlations")
+    lines.append("")
+    lines.append(
+        f"![Directional component correlations]({rel(figures['directional_component_correlations'])})"
+    )
+    lines.append("")
+    lines.append("### Figure 3. 2D Motion Alignment Fractions")
+    lines.append("")
+    lines.append(
+        f"![Motion alignment fractions]({rel(figures['motion_alignment_fractions'])})"
+    )
+    lines.append("")
+    lines.append("### Table 3. Head-Rotation Speed Group Summary")
+    lines.append("")
+    lines.append(
+        "Table 3 groups frames by head rotation speed within each sequence using the 33.3% and 66.7% "
+        "sequence-specific percentiles. The table then summarizes the 34 per-sequence group means, so the "
+        "statistical unit is a sequence-level group mean rather than a pooled frame."
+    )
+    lines.append("")
+    lines.append("| Metric | Mean | Median | Min | Max |")
+    lines.append("|---|---:|---:|---:|---:|")
+    for label, stats in [
+        ("Low-rotation-group mean local gaze velocity (deg/s)", low_stratum_velocity_stats),
+        ("Mid-rotation-group mean local gaze velocity (deg/s)", mid_stratum_velocity_stats),
+        ("High-rotation-group mean local gaze velocity (deg/s)", high_stratum_velocity_stats),
+        ("Low-rotation-group mean gaze-head angle (deg)", low_stratum_angle_stats),
+        ("Mid-rotation-group mean gaze-head angle (deg)", mid_stratum_angle_stats),
+        ("High-rotation-group mean gaze-head angle (deg)", high_stratum_angle_stats),
     ]:
         lines.append(
             f"| {label} | {fmt(stats['mean'])} | {fmt(stats['p50'])} | {fmt(stats['min'])} | {fmt(stats['max'])} |"
@@ -362,11 +546,12 @@ def build_markdown_report(
     lines.append(
         f"Mean local gaze velocity rises from `{fmt(low_stratum_velocity_stats['mean'])}` to "
         f"`{fmt(mid_stratum_velocity_stats['mean'])}` and then to "
-        f"`{fmt(high_stratum_velocity_stats['mean'])}` deg/s across low/mid/high head-rotation strata. "
-        "The gaze-head angle changes much less, so the clearest relation is dynamic rather than static."
+        f"`{fmt(high_stratum_velocity_stats['mean'])}` deg/s across low/mid/high head-rotation groups. "
+        "Because the groups are relative within each sequence, this result should be read as a within-sequence "
+        "trend rather than an absolute physical threshold."
     )
     lines.append("")
-    lines.append("### Figure 2. Local Gaze Velocity by Head-Rotation Stratum")
+    lines.append("### Figure 4. Local Gaze Velocity by Head-Rotation Speed Group")
     lines.append("")
     lines.append(
         f"![Local gaze velocity by head-rotation stratum]({rel(figures['local_gaze_velocity_by_head_rotation_stratum'])})"
@@ -378,7 +563,41 @@ def build_markdown_report(
         "report, but it remains a statistical relationship rather than a deterministic predictor."
     )
     lines.append("")
-    lines.append("### Figure 3. Current-vs-Next Rotation Correlation")
+    lines.append("### Table 4. Within-Sequence Effect Size Summary")
+    lines.append("")
+    lines.append(
+        "Table 4 normalizes each sequence by its own mean local gaze velocity. This reduces the influence of "
+        "sequences that are globally faster or slower and directly tests whether relatively higher head "
+        "rotation corresponds to a relative increase in local gaze velocity."
+    )
+    lines.append("")
+    lines.append("| Metric | Mean | Median | Min | Max |")
+    lines.append("|---|---:|---:|---:|---:|")
+    for label, stats in [
+        ("Low group / sequence mean", low_stratum_velocity_norm_stats),
+        ("Mid group / sequence mean", mid_stratum_velocity_norm_stats),
+        ("High group / sequence mean", high_stratum_velocity_norm_stats),
+        ("High-low delta (deg/s)", high_minus_low_velocity_stats),
+        ("High-low delta / sequence mean", high_minus_low_velocity_norm_stats),
+        ("High / low ratio", high_low_velocity_ratio_stats),
+    ]:
+        lines.append(
+            f"| {label} | {fmt(stats['mean'])} | {fmt(stats['p50'])} | {fmt(stats['min'])} | {fmt(stats['max'])} |"
+        )
+    lines.append("")
+    lines.append(
+        "The normalized view supports the same conclusion without relying on absolute velocity scale: within "
+        "a typical sequence, high-rotation frames have substantially larger local gaze velocity than "
+        "low-rotation frames."
+    )
+    lines.append("")
+    lines.append("### Figure 5. Normalized Local Gaze Velocity by Head-Rotation Group")
+    lines.append("")
+    lines.append(
+        f"![Normalized local gaze velocity by head-rotation group]({rel(figures['normalized_local_gaze_velocity_by_head_rotation_group'])})"
+    )
+    lines.append("")
+    lines.append("### Figure 6. Current-vs-Next Rotation Correlation")
     lines.append("")
     lines.append(
         "The one-step lagged diagnostic asks whether current head rotation remains associated with next-frame "
@@ -389,7 +608,7 @@ def build_markdown_report(
         f"![Current vs next rotation correlation]({rel(figures['current_vs_next_rotation_correlation'])})"
     )
     lines.append("")
-    lines.append("### Table 3. Auxiliary Next-Step Summary")
+    lines.append("### Table 5. Auxiliary Next-Step Summary")
     lines.append("")
     lines.append("| Metric | Mean | Median | Min | Max |")
     lines.append("|---|---:|---:|---:|---:|")
@@ -406,7 +625,7 @@ def build_markdown_report(
         "motivate later temporal modeling, but it is not itself a prediction experiment."
     )
     lines.append("")
-    lines.append("### Table 4. Sequences With Strongest Next-Step Head-Rotation Signal")
+    lines.append("### Table 6. Sequences With Strongest Next-Step Head-Rotation Signal")
     lines.append("")
     lines.append("| Sequence | corr(next local gaze vel, current head rot) |")
     lines.append("|---|---:|")
@@ -421,18 +640,25 @@ def build_markdown_report(
         "1. Head rotation is the useful head-motion family in this analysis; translation is weak."
     )
     lines.append(
-        "2. The relationship is weak-to-moderate, so head motion is context rather than a standalone gaze "
-        "predictor."
+        "2. The strongest relationship is in motion magnitude: larger head-rotation regimes contain larger "
+        "CPF-local gaze velocities."
     )
     lines.append(
-        "3. CPF-local velocity and dispersion are useful continuous diagnostics, but CPF-thresholded fixation "
+        "3. Directional metrics are necessary because speed-only analysis hides whether gaze moves with, "
+        "against, or orthogonal to head rotation."
+    )
+    lines.append(
+        "4. CPF-local velocity and dispersion are useful continuous diagnostics, but CPF-thresholded fixation "
         "labels are intentionally excluded because they do not define scene/object fixation."
     )
     lines.append("")
     lines.append("## Limitations")
     lines.append("")
     lines.append("- The report is based on correlation and stratification, not causal inference.")
-    lines.append("- Scene/object-level fixation detection is not implemented here.")
+    lines.append(
+        "- Scene-direction event detection is implemented separately; object-level fixation "
+        "detection is not implemented here."
+    )
     lines.append("- CPF dynamics should be used as auxiliary features, not as final event labels.")
     lines.append("")
     return "\n".join(lines) + "\n"
@@ -464,6 +690,17 @@ def describe_values(values: list[float]) -> dict[str, float]:
         "min": float(arr.min()),
         "max": float(arr.max()),
     }
+
+
+def safe_divide_list(numerators: list[float], denominators: list[float]) -> list[float]:
+    ratios: list[float] = []
+    for numerator, denominator in zip(numerators, denominators, strict=True):
+        if denominator == 0 or not np.isfinite(denominator):
+            continue
+        ratio = numerator / denominator
+        if np.isfinite(ratio):
+            ratios.append(float(ratio))
+    return ratios
 
 
 def relative_link(from_dir: Path, target: Path) -> str:

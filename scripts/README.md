@@ -29,6 +29,13 @@
   CPF-local gaze dynamics from existing `gaze_samples.csv` + `head_samples.csv`。
   这一层只算 local gaze velocity / dispersion 和 head context，不生成
   fixation/saccade labels。
+- `detect_scene_gaze_events.py`: detect first scene-direction gaze events from
+  existing `gaze_samples.csv`。这一层用 Scene-frame gaze direction 的 angular
+  velocity / dispersion 生成 `fixation` / `transition` / `invalid` labels，
+  和 CPF-local dynamics 分开保存。
+- `visualize_scene_gaze_events.py`: visualize one scene event window from
+  existing scene event CSV files。用于检查最终 label、Scene angular velocity
+  和 Scene dispersion 的时间关系，不重新打开 ADT provider。
 - `analyze_head_gaze_relationship.py`: build a per-frame joined head-gaze table
   plus sequence-level and batch-level statistics from existing gaze/head CSV
   exports。用于系统回答：
@@ -38,6 +45,11 @@
 - `report_head_gaze_relationship.py`: turn the already generated batch analysis
   outputs into a readable markdown report with fixed tables and figures。适合把
   这一步结果沉淀成可引用的分析报告，而不是只看原始 CSV/JSON。
+- `analyze_scene_head_gaze_relationship.py`: join Scene gaze events with
+  gaze/head features。用于比较 Scene/world gaze dynamics、CPF-local dynamics
+  和 head motion 的关系。
+- `report_scene_head_gaze_relationship.py`: generate the Scene-level head-gaze
+  report and figures from `batch_scene_head_gaze_analysis_summary.csv`。
 - `visualize_gaze_outputs.py`: regenerate visualizations from an existing gaze
   CSV and a selected row window。它会读取已有 CSV，再只为当前窗口打开 ADT
   provider 生成 scanpath、scene_rays、overlay frames 和 overlay video。
@@ -90,6 +102,38 @@ python scripts/batch_extract_head_proxy.py --reports-dir /mnt/d/SparseGaze/ADT-G
 python scripts/compute_gaze_dynamics_features.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
 ```
 
+如果要生成第一版 scene-direction event labels：
+
+```bash
+python scripts/detect_scene_gaze_events.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+```
+
+默认阈值：
+
+- `--velocity-threshold-deg-s 40`
+- `--dispersion-threshold-deg 2.5`
+- `--min-fixation-duration-ms 133`
+
+输出：
+
+- `*_scene_gaze_event_features.csv`
+- `*_scene_gaze_frame_labels.csv`
+- `*_scene_gaze_event_segments.csv`
+- `*_scene_gaze_event_summary.json`
+- `batch_scene_gaze_event_summary.csv`
+
+如果要看某个 sequence / frame window 的 event timeline：
+
+```bash
+python scripts/visualize_scene_gaze_events.py \
+  Apartment_release_decoration_skeleton_seq131_M1292 \
+  --reports-dir /mnt/d/SparseGaze/ADT-Gaze \
+  --start-frame 0 \
+  --end-frame 600
+```
+
+输出默认写到 `outputs/figures/scene_gaze_events/`。
+
 如果要系统分析 head-gaze 关系：
 
 先确认 `head_samples.csv` 是新版 schema；如果 D 盘上还是旧导出，先重跑：
@@ -112,6 +156,17 @@ python scripts/analyze_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze
 ```bash
 python scripts/report_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
 ```
+
+如果要进一步分析 Scene/world gaze dynamics 和 head motion 的关系：
+
+```bash
+python scripts/analyze_scene_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+python scripts/report_scene_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+```
+
+这一步读取 scene-direction event outputs，不替代 CPF head-gaze report，而是回答：
+最终 world gaze 是否随 head motion 变化，以及 scene fixation / transition 下的
+head-gaze dynamics 是否不同。
 
 如果已经有 CSV，只想重新调可视化参数：
 
