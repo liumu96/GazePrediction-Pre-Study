@@ -218,6 +218,10 @@ external/*
 !external/README.md
 !external/.gitkeep
 
+# Local SparseGaze checkout/reference repo. Keep it outside version control for
+# this ADT sandbox.
+sparsegaze/
+
 # ADT datasets are large. In WSL, keep them on /mnt/d/... and point to them
 # with ADT_DATA_ROOT instead of storing them inside this repository.
 data/
