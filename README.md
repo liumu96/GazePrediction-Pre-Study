@@ -122,6 +122,7 @@ ADT 探索路线记录在：
 
 - [docs/adt_exploration_plan.md](docs/adt_exploration_plan.md)
 - [docs/adt_feature_extraction_guide.md](docs/adt_feature_extraction_guide.md)
+- [docs/adt_feature_and_visualization_commands.md](docs/adt_feature_and_visualization_commands.md)
 - [docs/tutorial_gaze_feature_extraction.md](docs/tutorial_gaze_feature_extraction.md)
 - [docs/gaze_quality_report_notes.md](docs/gaze_quality_report_notes.md)
 - [docs/sparsegaze_modeling_notes.md](docs/sparsegaze_modeling_notes.md)
@@ -167,6 +168,56 @@ python scripts/check_gaze_quality.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
 - `gaze_quality_report.json`
 
 不会重新打开 ADT provider，也不会生成可视化。
+
+如果要开始 Scene-level context extraction，先检查一个 sequence 的
+object/skeleton assets：
+
+```bash
+python scripts/inspect_scene_assets.py Apartment_release_decoration_skeleton_seq131_M1292
+```
+
+当前 Scene feature 路线见
+[docs/scene_feature_extraction_plan.md](docs/scene_feature_extraction_plan.md)。
+第一步优先导出 object boxes，因为它直接服务 3D scene viewer 和后续
+gaze-object hit rate：
+
+```bash
+python scripts/extract_scene_object_boxes.py \
+  Apartment_release_decoration_skeleton_seq131_M1292 \
+  --output-dir /mnt/d/SparseGaze/ADT-Gaze
+```
+
+输出：
+
+- `<sequence>_scene_object_boxes.csv`
+- `<sequence>_scene_object_boxes_summary.json`
+
+如果要导出 skeleton joints，用 `adt` conda 环境：
+
+```bash
+conda run -n adt python scripts/extract_skeleton_samples.py \
+  Apartment_release_decoration_skeleton_seq131_M1292 \
+  --input-gaze-csv /mnt/d/SparseGaze/ADT-Gaze/Apartment_release_decoration_skeleton_seq131_M1292_gaze_samples.csv \
+  --output-dir /mnt/d/SparseGaze/ADT-Gaze
+```
+
+这会生成：
+
+- `<sequence>_skeleton_samples.csv`
+- `<sequence>_skeleton_summary.json`
+
+Skeleton 输出和 gaze rows 对齐，包含 root/head joint 以及全部 51 个 ADT skeleton
+joints 的 Scene-frame xyz 坐标，可用于后续 3D viewer / 火柴人示意。
+
+如果 object boxes、skeleton、gaze、head 都已经导出，可以打开：
+
+```text
+notebooks/05_scene_object_gaze_viewer.ipynb
+```
+
+它会在 Plotly 3D 视图里同时显示房间/object cuboids、skeleton、head/device
+trajectory、Scene-frame gaze rays 和 depth-defined gaze points，用来检查
+“人在场景里怎么移动、gaze 在场景里扫过哪里”。
 
 如果下一步开始准备 event analysis，或者想先把可复用的 head 特征层落盘，
 先提取和 gaze 行对齐的 `head_samples.csv`：

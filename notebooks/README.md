@@ -19,6 +19,11 @@ notebook cell 里。
   - 用 `azimuth` 滑块绕这个竖直轴旋转
   - 鼠标默认只做 zoom
   - 当前 ADT 这批提取结果默认使用 `Scene Y up`
+- `05_scene_object_gaze_viewer.ipynb`: 交互式查看 Scene-frame object boxes、
+  skeleton、head/device trajectory、gaze rays 和 depth-defined gaze points。
+  这个 notebook 依赖已经批量导出的 `gaze_samples`、`head_samples`、
+  `scene_object_boxes` 和 `skeleton_samples`，用于检查“人在房间里移动、
+  gaze 在场景里扫过哪里”的 3D 关系。
 - `02_pose_skeleton_objects.ipynb`: inspect Aria pose, skeleton joints, object
   2D/3D boxes, and image/depth/segmentation streams。扩展到 pose、skeleton、
   object、depth 和 segmentation。

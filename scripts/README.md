@@ -25,6 +25,19 @@
 - `check_gaze_quality.py`: summarize the extracted `gaze_summary.json` files
   into one flat CSV and one aggregate JSON。用于在不重新打开 provider 的前提下，
   做 sequence-level gaze 质量体检。
+- `inspect_scene_assets.py`: inspect scene/object/skeleton files for one ADT
+  sequence without requiring the official ADT provider。用于确认
+  `scene_objects.csv`、`3d_bounding_box.csv`、`Skeleton_T.json` 等资产是否可用。
+- `extract_scene_object_boxes.py`: join `instances.json`、`scene_objects.csv`
+  和 `3d_bounding_box.csv`，导出 Scene-frame object boxes 和 8 个 3D corners。
+  这是后续 gaze-object hit test 和 3D scene viewer 的基础层。
+- `batch_extract_scene_object_boxes.py`: batch-run object box extraction over
+  ADT sequences and write `batch_scene_object_boxes_summary.csv`。
+- `extract_skeleton_samples.py`: extract ADT skeleton joints aligned to existing
+  gaze sample timestamps。需要在 `adt` conda 环境里运行；输出 Scene-frame
+  root/head joints 和全部 51 个 skeleton joints。
+- `batch_extract_skeleton_samples.py`: batch-run gaze-aligned skeleton extraction
+  over existing `*_gaze_samples.csv` files。
 - `compute_gaze_dynamics_features.py`: compute whole-sequence per-frame
   CPF-local gaze dynamics from existing `gaze_samples.csv` + `head_samples.csv`。
   这一层只算 local gaze velocity / dispersion 和 head context，不生成
@@ -89,6 +102,59 @@ python scripts/batch_extract_gaze_samples.py <sequence_id_1> <sequence_id_2> --s
 ```bash
 python scripts/check_gaze_quality.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
 ```
+
+如果要检查一个 sequence 的 scene/object/skeleton assets：
+
+```bash
+python scripts/inspect_scene_assets.py Apartment_release_decoration_skeleton_seq131_M1292
+```
+
+如果要导出 Scene-frame object boxes：
+
+```bash
+python scripts/extract_scene_object_boxes.py \
+  Apartment_release_decoration_skeleton_seq131_M1292 \
+  --output-dir /mnt/d/SparseGaze/ADT-Gaze
+```
+
+输出：
+
+- `<sequence>_scene_object_boxes.csv`
+- `<sequence>_scene_object_boxes_summary.json`
+
+批量导出：
+
+```bash
+python scripts/batch_extract_scene_object_boxes.py --output-dir /mnt/d/SparseGaze/ADT-Gaze
+```
+
+批量输出：
+
+- `batch_scene_object_boxes_summary.csv`
+- `batch_scene_object_boxes_report.json`
+
+如果要导出和 gaze timestamps 对齐的 skeleton samples，使用 `adt` conda 环境：
+
+```bash
+conda run -n adt python scripts/extract_skeleton_samples.py \
+  Apartment_release_decoration_skeleton_seq131_M1292 \
+  --input-gaze-csv /mnt/d/SparseGaze/ADT-Gaze/Apartment_release_decoration_skeleton_seq131_M1292_gaze_samples.csv \
+  --output-dir /mnt/d/SparseGaze/ADT-Gaze
+```
+
+批量导出：
+
+```bash
+conda run -n adt python scripts/batch_extract_skeleton_samples.py \
+  --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+```
+
+输出：
+
+- `<sequence>_skeleton_samples.csv`
+- `<sequence>_skeleton_summary.json`
+- `batch_skeleton_samples_summary.csv`
+- `batch_skeleton_samples_report.json`
 
 如果要为 gaze dynamics 或 head-gaze 关系分析先提 head features：
 

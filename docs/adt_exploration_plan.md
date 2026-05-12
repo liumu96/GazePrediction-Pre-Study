@@ -239,19 +239,38 @@ event 后续单独设计。
   - 分析 residual 是否能被 current head / head history 解释
   - 做 head motion 与 CPF/Scene gaze dynamics 的 lead-lag correlation
   - 生成 `docs/sparsegaze_head_utility_report.md`
+- `scene_features.py`、`inspect_scene_assets.py` 与
+  `extract_scene_object_boxes.py` 已开始实现 Scene feature layer：
+  - 不依赖官方 provider，直接读取 `instances.json`、`scene_objects.csv`、
+    `3d_bounding_box.csv` 和 skeleton files
+  - 第一版导出 Scene-frame object boxes 和 8 个 3D corners
+  - 详细路线见 `docs/scene_feature_extraction_plan.md`
+- `skeleton_features.py`、`extract_skeleton_samples.py` 与
+  `batch_extract_skeleton_samples.py` 已实现 gaze-aligned skeleton extraction：
+  - 在 `adt` conda 环境下使用 `AriaDigitalTwinSkeletonProvider`
+  - 直接读取 `Skeleton_T.json`
+  - 输出 root/head joint 和全部 51 个 Scene-frame skeleton joints
+  - 单序列验证 valid ratio = `1.000`
 
 ## Immediate Next Step / 下一步
 
-gaze-first 路径已经先跑通。当前更合理的顺序是：
+gaze-first 路径已经先跑通。当前暂停模型分析，转向 Scene feature extraction。
+更合理的顺序是：
 
-1. 先 review `docs/sparsegaze_head_utility_report.md`，把结论转成下一版
-   SparseGaze 模型/实验设定：
-   - 是否保留 current head
-   - 是否增加 head history / cumulative head motion
-   - 是否按 anchor gap 或 Scene event 分支分析误差
-2. 后续真正要做 object-level event 时，单独设计 object/target pipeline：
-   - predictor-facing error analysis
-   - object / task context 对接
-   - object-level fixation labels
-3. 根据 CPF/Scene head-gaze reports，整理 SparseGaze 侧应该保留的 head feature
-   和 event-aware 分析问题。
+1. 验证单 sequence 的 `*_scene_object_boxes.csv` 是否正确：
+   - object count
+   - bbox size
+   - Scene-frame corners
+   - 和 2D boxes / viewer 是否大体一致
+2. 批量导出 object boxes。
+3. 批量导出 skeleton samples，作为 3D viewer 的 body trajectory / 火柴人层。
+4. 实现 gaze-object hit test：
+   - GT gaze ray -> object box
+   - hit object id / category / distance / no-hit
+5. 做 3D scene viewer：
+   - object boxes
+   - body/head trajectory
+   - skeleton joints / limb connections
+   - GT gaze rays / gaze hit trajectory
+6. 后续再把 SparseGaze prediction 接入，评估 predicted-vs-GT object hit
+   agreement。
