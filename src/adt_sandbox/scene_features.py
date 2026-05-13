@@ -16,6 +16,8 @@ from math import isfinite, sqrt
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
+from .results import sequence_file_path
+
 
 SCENE_OBJECTS_CSV = "scene_objects.csv"
 OBJECT_3D_BOX_CSV = "3d_bounding_box.csv"
@@ -270,18 +272,20 @@ def default_scene_object_boxes_csv_path(
     sequence_name: str,
     output_dir: str | Path | None = None,
 ) -> Path:
-    base_dir = (
-        Path(output_dir)
-        if output_dir is not None
-        else Path(__file__).resolve().parents[2] / "outputs" / "reports"
+    return sequence_file_path(
+        output_dir,
+        sequence_name,
+        "scene",
+        "scene_object_boxes.csv",
     )
-    return base_dir / f"{sequence_name}_scene_object_boxes.csv"
 
 
 def default_scene_object_boxes_summary_json_path(csv_path: str | Path) -> Path:
     output_path = Path(csv_path)
     stem = output_path.stem
-    if stem.endswith("_scene_object_boxes"):
+    if stem == "scene_object_boxes":
+        stem = "scene_object_boxes_summary"
+    elif stem.endswith("_scene_object_boxes"):
         stem = stem[: -len("_scene_object_boxes")] + "_scene_object_boxes_summary"
     return output_path.with_name(f"{stem}.json")
 

@@ -39,6 +39,7 @@ from adt_sandbox.config import load_dotenv  # noqa: E402
 from adt_sandbox.gaze import RGB_STREAM_ID  # noqa: E402
 from adt_sandbox.gaze_extraction import (  # noqa: E402
     GazeExtractionConfig,
+    default_gaze_csv_path,
     extract_sequence_gaze,
 )
 
@@ -109,8 +110,17 @@ def parse_args() -> argparse.Namespace:
         "--output-csv",
         type=Path,
         default=None,
-        help="Output CSV path. Defaults to outputs/reports/<sequence>_gaze_samples.csv.",
-    ) # output-csv 参数指定输出 CSV 文件的路径。默认值是 outputs/reports/<sequence>_gaze_samples.csv，其中 <sequence> 将被替换为处理的序列名称。
+        help="Output CSV path. Overrides --output-dir.",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=None,
+        help=(
+            "Reports root for organized output. Default is outputs/reports; "
+            "writes sequences/<sequence>/gaze/gaze_samples.csv."
+        ),
+    )
     parser.add_argument(
         "--raw-image-orientation",
         action="store_true",
@@ -121,6 +131,9 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    output_csv = args.output_csv
+    if output_csv is None and args.output_dir is not None:
+        output_csv = default_gaze_csv_path(args.sequence.name, output_dir=args.output_dir)
     result = extract_sequence_gaze(
         args.sequence,
         config=GazeExtractionConfig(
@@ -133,7 +146,7 @@ def main() -> None:
             max_dt_ms=args.max_dt_ms,
             raw_image_orientation=args.raw_image_orientation,
         ),
-        output_csv=args.output_csv,
+        output_csv=output_csv,
     )
     print_summary(result.output_csv, result.summary_json, result.summary)
 

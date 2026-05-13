@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from .results import discover_sequence_files, find_sequence_file
+
 
 def discover_sequence_ids(reports_dir: str | Path) -> list[str]:
     """Return sequence ids that have both gaze and head CSVs."""
@@ -20,14 +22,12 @@ def discover_sequence_ids(reports_dir: str | Path) -> list[str]:
         raise NotADirectoryError(f"Expected reports directory: {root}")
 
     gaze_ids = {
-        path.stem[: -len("_gaze_samples")]
-        for path in root.glob("*_gaze_samples.csv")
-        if path.stem.endswith("_gaze_samples")
+        item.sequence_name
+        for item in discover_sequence_files(root, "gaze", "gaze_samples.csv")
     }
     head_ids = {
-        path.stem[: -len("_head_samples")]
-        for path in root.glob("*_head_samples.csv")
-        if path.stem.endswith("_head_samples")
+        item.sequence_name
+        for item in discover_sequence_files(root, "head", "head_samples.csv")
     }
     sequence_ids = sorted(gaze_ids & head_ids)
     if not sequence_ids:
@@ -39,12 +39,8 @@ def load_gaze_head_frame(reports_dir: str | Path, sequence_id: str) -> pd.DataFr
     """Load and align one sequence's gaze/head CSVs on `query_timestamp_ns`."""
 
     root = Path(reports_dir).expanduser()
-    gaze_csv = root / f"{sequence_id}_gaze_samples.csv"
-    head_csv = root / f"{sequence_id}_head_samples.csv"
-    if not gaze_csv.exists():
-        raise FileNotFoundError(f"Missing gaze CSV: {gaze_csv}")
-    if not head_csv.exists():
-        raise FileNotFoundError(f"Missing head CSV: {head_csv}")
+    gaze_csv = find_sequence_file(root, sequence_id, "gaze", "gaze_samples.csv")
+    head_csv = find_sequence_file(root, sequence_id, "head", "head_samples.csv")
 
     gaze_df = pd.read_csv(gaze_csv)
     head_df = pd.read_csv(head_csv)

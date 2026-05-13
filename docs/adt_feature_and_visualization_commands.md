@@ -19,23 +19,89 @@ conda activate adt
 Large outputs should stay outside the repository. Current working output root:
 
 ```bash
-REPORTS_DIR=/mnt/d/SparseGaze/ADT-Gaze
+REPORTS_DIR=/mnt/d/SparseGaze/ADT-Gaze-structured
 ```
+
+The older flat result directory was:
+
+```text
+/mnt/d/SparseGaze/ADT-Gaze
+```
+
+It has been copied non-destructively into the organized directory above. The
+current code and notebooks use the organized directory; the old flat directory
+is no longer required by this repository after the copy is verified.
 
 ADT raw data is resolved from `ADT_DATA_ROOT` in `.env` or the shell
 environment.
+
+## Result Directory Layout
+
+The organized layout groups files by sequence first:
+
+```text
+$REPORTS_DIR/
+├── sequences/
+│   └── <sequence_id>/
+│       ├── gaze/
+│       ├── head/
+│       ├── dynamics/
+│       ├── events/
+│       ├── events_legacy/
+│       ├── scene/
+│       ├── skeleton/
+│       └── analysis/
+├── batch/
+├── organization_manifest.csv
+└── organization_manifest.json
+```
+
+This makes it possible to inspect one sequence by opening:
+
+```text
+$REPORTS_DIR/sequences/<sequence_id>/
+```
+
+To copy an existing flat directory into this structure:
+
+```bash
+python scripts/organize_flat_reports.py \
+  /mnt/d/SparseGaze/ADT-Gaze \
+  /mnt/d/SparseGaze/ADT-Gaze-structured
+```
+
+The command above is a dry-run. To actually copy:
+
+```bash
+python scripts/organize_flat_reports.py \
+  /mnt/d/SparseGaze/ADT-Gaze \
+  /mnt/d/SparseGaze/ADT-Gaze-structured \
+  --execute
+```
+
+It copies files only; it does not delete or move the source files.
+
+After validating the organized directory, the old flat directory is no longer
+needed by the current code. Delete it only when you no longer need it as a
+manual backup:
+
+```text
+/mnt/d/SparseGaze/ADT-Gaze
+```
+
+The repository does not keep runtime fallback logic for this old layout.
 
 ## Feature Layers
 
 | Layer | Main script | Main output | Coordinate / meaning |
 | --- | --- | --- | --- |
-| Gaze samples | `batch_extract_gaze_samples.py` | `*_gaze_samples.csv` | CPF, RGB camera, Scene gaze features |
-| Gaze quality | `check_gaze_quality.py` | `gaze_quality_report.csv/json` | sequence-level validity |
-| Head proxy | `batch_extract_head_proxy.py` | `*_head_samples.csv` | device/CPF pose in Scene plus relative motion |
-| CPF gaze dynamics | `compute_gaze_dynamics_features.py` | `*_gaze_dynamics_features.csv` | local eye-in-head velocity / dispersion |
-| Scene gaze events | `detect_scene_gaze_events.py` | `*_scene_gaze_frame_labels.csv`, `*_scene_gaze_event_segments.csv` | world/Scene fixation vs transition labels |
-| Scene object boxes | `batch_extract_scene_object_boxes.py` | `*_scene_object_boxes.csv` | object cuboids in Scene frame |
-| Skeleton samples | `batch_extract_skeleton_samples.py` | `*_skeleton_samples.csv` | skeleton joints in Scene frame |
+| Gaze samples | `batch_extract_gaze_samples.py` | `gaze/gaze_samples.csv` | CPF, RGB camera, Scene gaze features |
+| Gaze quality | `check_gaze_quality.py` | `batch/gaze_quality_report.csv/json` | sequence-level validity |
+| Head proxy | `batch_extract_head_proxy.py` | `head/head_samples.csv` | device/CPF pose in Scene plus relative motion |
+| CPF gaze dynamics | `compute_gaze_dynamics_features.py` | `dynamics/gaze_dynamics.csv` | local eye-in-head velocity / dispersion |
+| Scene gaze events | `detect_scene_gaze_events.py` | `events/scene_gaze_frame_labels.csv`, `events/scene_gaze_event_segments.csv` | world/Scene fixation vs transition labels |
+| Scene object boxes | `batch_extract_scene_object_boxes.py` | `scene/scene_object_boxes.csv` | object cuboids in Scene frame |
+| Skeleton samples | `batch_extract_skeleton_samples.py` | `skeleton/skeleton_samples.csv` | skeleton joints in Scene frame |
 | Head-gaze analysis | `analyze_*`, `report_*` | markdown reports + figures | diagnostic analysis, not base features |
 
 Current scope:
@@ -100,10 +166,10 @@ python scripts/extract_gaze_samples.py \
 
 Outputs:
 
-- `<sequence>_gaze_samples.csv`
-- `<sequence>_gaze_summary.json`
-- `batch_gaze_summary.csv`
-- `batch_gaze_summary.json`
+- `sequences/<sequence>/gaze/gaze_samples.csv`
+- `sequences/<sequence>/gaze/gaze_summary.json`
+- `batch/batch_gaze_extract_summary.csv`
+- `batch/batch_gaze_extract_summary.json`
 
 Important fields:
 
@@ -123,8 +189,8 @@ python scripts/check_gaze_quality.py --reports-dir "$REPORTS_DIR"
 
 Outputs:
 
-- `gaze_quality_report.csv`
-- `gaze_quality_report.json`
+- `batch/gaze_quality_report.csv`
+- `batch/gaze_quality_report.json`
 
 This only reads existing `*_gaze_summary.json`; it does not reopen ADT
 providers.
@@ -136,7 +202,7 @@ Single sequence:
 ```bash
 python scripts/extract_head_proxy.py \
   Apartment_release_decoration_skeleton_seq131_M1292 \
-  --input-gaze-csv "$REPORTS_DIR/Apartment_release_decoration_skeleton_seq131_M1292_gaze_samples.csv" \
+  --input-gaze-csv "$REPORTS_DIR/sequences/Apartment_release_decoration_skeleton_seq131_M1292/gaze/gaze_samples.csv" \
   --output-dir "$REPORTS_DIR"
 ```
 
@@ -148,8 +214,8 @@ python scripts/batch_extract_head_proxy.py --reports-dir "$REPORTS_DIR"
 
 Outputs:
 
-- `<sequence>_head_samples.csv`
-- `<sequence>_head_summary.json`
+- `sequences/<sequence>/head/head_samples.csv`
+- `sequences/<sequence>/head/head_summary.json`
 
 Meaning:
 
@@ -173,9 +239,9 @@ python scripts/compute_gaze_dynamics_features.py --reports-dir "$REPORTS_DIR"
 
 Outputs:
 
-- `<sequence>_gaze_dynamics_features.csv`
-- `<sequence>_gaze_dynamics_summary.json`
-- `batch_gaze_dynamics_summary.csv`
+- `sequences/<sequence>/dynamics/gaze_dynamics.csv`
+- `sequences/<sequence>/dynamics/gaze_dynamics_summary.json`
+- `batch/batch_gaze_dynamics_summary.csv`
 
 Meaning:
 
@@ -211,11 +277,11 @@ python scripts/detect_scene_gaze_events.py \
 
 Outputs:
 
-- `<sequence>_scene_gaze_event_features.csv`
-- `<sequence>_scene_gaze_frame_labels.csv`
-- `<sequence>_scene_gaze_event_segments.csv`
-- `<sequence>_scene_gaze_event_summary.json`
-- `batch_scene_gaze_event_summary.csv`
+- `sequences/<sequence>/events/scene_gaze_event_features.csv`
+- `sequences/<sequence>/events/scene_gaze_frame_labels.csv`
+- `sequences/<sequence>/events/scene_gaze_event_segments.csv`
+- `sequences/<sequence>/events/scene_gaze_event_summary.json`
+- `batch/batch_scene_gaze_event_summary.csv`
 
 Meaning:
 
@@ -243,10 +309,10 @@ python scripts/batch_extract_scene_object_boxes.py --output-dir "$REPORTS_DIR"
 
 Outputs:
 
-- `<sequence>_scene_object_boxes.csv`
-- `<sequence>_scene_object_boxes_summary.json`
-- `batch_scene_object_boxes_summary.csv`
-- `batch_scene_object_boxes_report.json`
+- `sequences/<sequence>/scene/scene_object_boxes.csv`
+- `sequences/<sequence>/scene/scene_object_boxes_summary.json`
+- `batch/batch_scene_object_boxes_summary.csv`
+- `batch/batch_scene_object_boxes_report.json`
 
 Meaning:
 
@@ -266,7 +332,7 @@ Single sequence:
 ```bash
 conda run -n adt python scripts/extract_skeleton_samples.py \
   Apartment_release_decoration_skeleton_seq131_M1292 \
-  --input-gaze-csv "$REPORTS_DIR/Apartment_release_decoration_skeleton_seq131_M1292_gaze_samples.csv" \
+  --input-gaze-csv "$REPORTS_DIR/sequences/Apartment_release_decoration_skeleton_seq131_M1292/gaze/gaze_samples.csv" \
   --output-dir "$REPORTS_DIR"
 ```
 
@@ -279,10 +345,10 @@ conda run -n adt python scripts/batch_extract_skeleton_samples.py \
 
 Outputs:
 
-- `<sequence>_skeleton_samples.csv`
-- `<sequence>_skeleton_summary.json`
-- `batch_skeleton_samples_summary.csv`
-- `batch_skeleton_samples_report.json`
+- `sequences/<sequence>/skeleton/skeleton_samples.csv`
+- `sequences/<sequence>/skeleton/skeleton_summary.json`
+- `batch/batch_skeleton_samples_summary.csv`
+- `batch/batch_skeleton_samples_report.json`
 
 Meaning:
 
@@ -391,7 +457,7 @@ Current notebooks:
 To use the notebooks, first make sure the feature layers exist in:
 
 ```text
-/mnt/d/SparseGaze/ADT-Gaze
+/mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
 Then open the notebook in VS Code and select a Python/Jupyter kernel with
@@ -407,7 +473,7 @@ conda run -n adt python -m ipykernel install --user --name adt --display-name "P
 For a clean rerun from raw ADT data to current visualization-ready features:
 
 ```bash
-export REPORTS_DIR=/mnt/d/SparseGaze/ADT-Gaze
+export REPORTS_DIR=/mnt/d/SparseGaze/ADT-Gaze-structured
 
 python scripts/batch_extract_gaze_samples.py --output-dir "$REPORTS_DIR" --stride 1
 python scripts/check_gaze_quality.py --reports-dir "$REPORTS_DIR"
@@ -465,4 +531,3 @@ python -m json.tool \
   notebooks/05_scene_object_gaze_viewer.ipynb \
   /tmp/scene_viewer_notebook_check.json
 ```
-

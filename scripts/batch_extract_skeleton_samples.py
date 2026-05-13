@@ -23,6 +23,7 @@ from adt_sandbox.skeleton_features import (  # noqa: E402
     write_json,
     write_skeleton_samples_csv,
 )
+from adt_sandbox.results import batch_dir, discover_sequence_names as discover_feature_sequence_names, find_sequence_file  # noqa: E402
 
 load_dotenv(REPO_ROOT / ".env")
 
@@ -68,7 +69,12 @@ def main() -> None:
     batch_rows: list[dict[str, Any]] = []
     for index, sequence_name in enumerate(sequence_names, start=1):
         sequence_dir = resolve_sequence_path(sequence_name)
-        gaze_csv = reports_dir / f"{sequence_name}_gaze_samples.csv"
+        gaze_csv = find_sequence_file(
+            reports_dir,
+            sequence_name,
+            "gaze",
+            "gaze_samples.csv",
+        )
         output_csv = default_skeleton_samples_csv_path(
             sequence_name,
             output_dir=output_dir,
@@ -102,9 +108,9 @@ def main() -> None:
             f"dt_p50_ns={summary['abs_dt_ns']['p50']:.0f}"
         )
 
-    output_dir.mkdir(parents=True, exist_ok=True)
-    batch_csv = output_dir / "batch_skeleton_samples_summary.csv"
-    batch_json = output_dir / "batch_skeleton_samples_report.json"
+    batch_output_dir = batch_dir(output_dir)
+    batch_csv = batch_output_dir / "batch_skeleton_samples_summary.csv"
+    batch_json = batch_output_dir / "batch_skeleton_samples_report.json"
     write_batch_csv(batch_csv, batch_rows)
     write_json(
         batch_json,
@@ -124,12 +130,13 @@ def main() -> None:
 
 
 def discover_sequence_names(reports_dir: Path) -> list[str]:
-    names = [
-        path.stem[: -len("_gaze_samples")]
-        for path in sorted(reports_dir.glob("*_gaze_samples.csv"))
-    ]
+    names = discover_feature_sequence_names(
+        reports_dir,
+        "gaze",
+        "gaze_samples.csv",
+    )
     if not names:
-        raise ValueError(f"No *_gaze_samples.csv files found in: {reports_dir}")
+        raise ValueError(f"No gaze sample CSV files found in: {reports_dir}")
     return names
 
 

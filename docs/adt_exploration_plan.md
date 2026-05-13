@@ -224,7 +224,7 @@ event 后续单独设计。
   - 基于 `gaze_dir_scene_unit_xyz`
   - 输出 scene-direction `fixation` / `transition` / `invalid`
   - 阈值参数化，默认 `40 deg/s`、`2.5 deg`、`133 ms`
-- `/mnt/d/SparseGaze/ADT-Gaze` 已完成全量 scene-direction event 导出
+- `/mnt/d/SparseGaze/ADT-Gaze-structured` 已完成全量 scene-direction event 导出
 - `visualize_scene_gaze_events.py` 已实现并完成窗口级 timeline 抽查
 - `head_gaze_analysis.py` 与 `analyze_head_gaze_relationship.py` 已实现：
   - 从已有 gaze/head CSV 直接生成逐帧 joined table

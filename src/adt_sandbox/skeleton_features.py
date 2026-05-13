@@ -11,6 +11,8 @@ from typing import Any, Sequence
 
 import numpy as np
 
+from .results import sequence_file_path
+
 
 SKELETON_JSON = "Skeleton_T.json"
 
@@ -185,18 +187,20 @@ def default_skeleton_samples_csv_path(
     sequence_name: str,
     output_dir: str | Path | None = None,
 ) -> Path:
-    base_dir = (
-        Path(output_dir)
-        if output_dir is not None
-        else Path(__file__).resolve().parents[2] / "outputs" / "reports"
+    return sequence_file_path(
+        output_dir,
+        sequence_name,
+        "skeleton",
+        "skeleton_samples.csv",
     )
-    return base_dir / f"{sequence_name}_skeleton_samples.csv"
 
 
 def default_skeleton_summary_json_path(csv_path: str | Path) -> Path:
     output_path = Path(csv_path)
     stem = output_path.stem
-    if stem.endswith("_skeleton_samples"):
+    if stem == "skeleton_samples":
+        stem = "skeleton_summary"
+    elif stem.endswith("_skeleton_samples"):
         stem = stem[: -len("_skeleton_samples")] + "_skeleton_summary"
     return output_path.with_name(f"{stem}.json")
 

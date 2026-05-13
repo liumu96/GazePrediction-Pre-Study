@@ -10,6 +10,8 @@ from typing import Any, Iterable, Sequence
 import numpy as np
 import pandas as pd
 
+from .results import discover_sequence_files, find_sequence_file
+
 
 BOX_EDGES: tuple[tuple[int, int], ...] = (
     (0, 1),
@@ -41,21 +43,19 @@ def discover_scene_viewer_sequence_ids(reports_dir: str | Path) -> list[str]:
     root = Path(reports_dir).expanduser()
     if not root.exists():
         raise FileNotFoundError(f"Reports directory does not exist: {root}")
-    suffixes = [
-        "_gaze_samples.csv",
-        "_head_samples.csv",
-        "_scene_object_boxes.csv",
-        "_skeleton_samples.csv",
+    file_specs = [
+        ("gaze", "gaze_samples.csv"),
+        ("head", "head_samples.csv"),
+        ("scene", "scene_object_boxes.csv"),
+        ("skeleton", "skeleton_samples.csv"),
     ]
-    id_sets = []
-    for suffix in suffixes:
-        id_sets.append(
-            {
-                path.name[: -len(suffix)]
-                for path in root.glob(f"*{suffix}")
-                if path.name.endswith(suffix)
-            }
-        )
+    id_sets = [
+        {
+            item.sequence_name
+            for item in discover_sequence_files(root, layer, filename)
+        }
+        for layer, filename in file_specs
+    ]
     sequence_ids = sorted(set.intersection(*id_sets))
     if not sequence_ids:
         raise ValueError(f"No complete scene-viewer sequence sets found in: {root}")
@@ -69,11 +69,36 @@ def load_scene_viewer_data(
     """Load gaze/head/skeleton rows plus Scene object boxes for one sequence."""
 
     root = Path(reports_dir).expanduser()
-    gaze = _read_required_csv(root / f"{sequence_id}_gaze_samples.csv")
-    head = _read_required_csv(root / f"{sequence_id}_head_samples.csv")
-    skeleton = _read_required_csv(root / f"{sequence_id}_skeleton_samples.csv")
-    objects = _read_required_csv(root / f"{sequence_id}_scene_object_boxes.csv")
-    skeleton_summary = _read_json_if_exists(root / f"{sequence_id}_skeleton_summary.json")
+    gaze = _read_required_csv(
+        find_sequence_file(root, sequence_id, "gaze", "gaze_samples.csv")
+    )
+    head = _read_required_csv(
+        find_sequence_file(root, sequence_id, "head", "head_samples.csv")
+    )
+    skeleton = _read_required_csv(
+        find_sequence_file(
+            root,
+            sequence_id,
+            "skeleton",
+            "skeleton_samples.csv",
+        )
+    )
+    objects = _read_required_csv(
+        find_sequence_file(
+            root,
+            sequence_id,
+            "scene",
+            "scene_object_boxes.csv",
+        )
+    )
+    skeleton_summary = _read_json_if_exists(
+        find_optional_sequence_file(
+            root,
+            sequence_id,
+            "skeleton",
+            "skeleton_summary.json",
+        )
+    )
 
     frames = gaze.merge(
         head,
@@ -592,7 +617,21 @@ def _read_required_csv(path: Path) -> pd.DataFrame:
     return pd.read_csv(path)
 
 
-def _read_json_if_exists(path: Path) -> dict[str, Any] | None:
+def _read_json_if_exists(path: Path | None) -> dict[str, Any] | None:
+    if path is None:
+        return None
     if not path.exists():
         return None
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def find_optional_sequence_file(
+    root: Path,
+    sequence_id: str,
+    layer: str,
+    filename: str,
+) -> Path | None:
+    try:
+        return find_sequence_file(root, sequence_id, layer, filename)
+    except FileNotFoundError:
+        return None

@@ -53,6 +53,7 @@ from adt_sandbox.gaze import (  # noqa: E402
     write_scene_rays_plot,
 )
 from adt_sandbox.providers import create_adt_providers  # noqa: E402
+from adt_sandbox.results import find_sequence_file  # noqa: E402
 
 load_dotenv(REPO_ROOT / ".env")
 
@@ -67,7 +68,7 @@ def parse_args() -> argparse.Namespace:
         "--input-csv",
         type=Path,
         default=None,
-        help="Input CSV path. Defaults to outputs/reports/<sequence>_gaze_samples.csv.",
+        help="Input CSV path. Defaults to outputs/reports/sequences/<sequence>/gaze/gaze_samples.csv.",
     )
     parser.add_argument("--start-row", type=int, default=0, help="Starting CSV row index.")
     parser.add_argument("--end-row", type=int, default=None, help="Exclusive ending CSV row index.")
@@ -87,8 +88,11 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    csv_path = args.input_csv or (
-        REPO_ROOT / "outputs" / "reports" / f"{Path(args.sequence).name}_gaze_samples.csv"
+    csv_path = args.input_csv or find_sequence_file(
+        REPO_ROOT / "outputs" / "reports",
+        Path(args.sequence).name,
+        "gaze",
+        "gaze_samples.csv",
     )
     samples = read_samples_csv(csv_path)
     indexed_samples = list(enumerate(samples))

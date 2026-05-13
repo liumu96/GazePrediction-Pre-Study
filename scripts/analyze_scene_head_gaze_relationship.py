@@ -36,6 +36,7 @@ from adt_sandbox.scene_head_gaze_analysis import (  # noqa: E402
     write_scene_head_gaze_analysis_rows_csv,
     write_summary_json,
 )
+from adt_sandbox.results import batch_dir, discover_sequence_names as discover_feature_sequence_names, find_sequence_file  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -78,10 +79,30 @@ def main() -> None:
 
     batch_rows: list[dict[str, Any]] = []
     for index, sequence_name in enumerate(sequence_names, start=1):
-        gaze_csv = reports_dir / f"{sequence_name}_gaze_samples.csv"
-        head_csv = reports_dir / f"{sequence_name}_head_samples.csv"
-        scene_features_csv = reports_dir / f"{sequence_name}_scene_gaze_event_features.csv"
-        scene_labels_csv = reports_dir / f"{sequence_name}_scene_gaze_frame_labels.csv"
+        gaze_csv = find_sequence_file(
+            reports_dir,
+            sequence_name,
+            "gaze",
+            "gaze_samples.csv",
+        )
+        head_csv = find_sequence_file(
+            reports_dir,
+            sequence_name,
+            "head",
+            "head_samples.csv",
+        )
+        scene_features_csv = find_sequence_file(
+            reports_dir,
+            sequence_name,
+            "events",
+            "scene_gaze_event_features.csv",
+        )
+        scene_labels_csv = find_sequence_file(
+            reports_dir,
+            sequence_name,
+            "events",
+            "scene_gaze_frame_labels.csv",
+        )
 
         rows = build_scene_head_gaze_analysis_rows(
             read_samples_csv(gaze_csv),
@@ -125,9 +146,10 @@ def main() -> None:
             f"{format_optional(batch_rows[-1]['corr_scene_velocity_vs_head_rotation_speed'])}"
         )
 
-    batch_csv = output_dir / "batch_scene_head_gaze_analysis_summary.csv"
+    batch_output_dir = batch_dir(output_dir)
+    batch_csv = batch_output_dir / "batch_scene_head_gaze_analysis_summary.csv"
     write_batch_csv(batch_csv, batch_rows)
-    batch_json = output_dir / "batch_scene_head_gaze_analysis_report.json"
+    batch_json = batch_output_dir / "batch_scene_head_gaze_analysis_report.json"
     write_summary_json(batch_json, summarize_batch_rows(batch_rows))
     print(f"sequences: {len(batch_rows)}")
     print(f"batch_csv: {batch_csv}")
@@ -137,16 +159,37 @@ def main() -> None:
 def discover_sequence_names(reports_dir: Path) -> list[str]:
     if not reports_dir.exists():
         raise FileNotFoundError(f"Reports directory does not exist: {reports_dir}")
-    names: list[str] = []
-    for gaze_csv in sorted(reports_dir.glob("*_gaze_samples.csv")):
-        sequence_name = gaze_csv.stem[: -len("_gaze_samples")]
-        required = [
-            reports_dir / f"{sequence_name}_head_samples.csv",
-            reports_dir / f"{sequence_name}_scene_gaze_event_features.csv",
-            reports_dir / f"{sequence_name}_scene_gaze_frame_labels.csv",
-        ]
-        if all(path.exists() for path in required):
-            names.append(sequence_name)
+    name_sets = [
+        set(
+            discover_feature_sequence_names(
+                reports_dir,
+                "gaze",
+                "gaze_samples.csv",
+            )
+        ),
+        set(
+            discover_feature_sequence_names(
+                reports_dir,
+                "head",
+                "head_samples.csv",
+            )
+        ),
+        set(
+            discover_feature_sequence_names(
+                reports_dir,
+                "events",
+                "scene_gaze_event_features.csv",
+            )
+        ),
+        set(
+            discover_feature_sequence_names(
+                reports_dir,
+                "events",
+                "scene_gaze_frame_labels.csv",
+            )
+        ),
+    ]
+    names = sorted(set.intersection(*name_sets))
     if not names:
         raise ValueError(f"No complete scene head-gaze input sets found in: {reports_dir}")
     return names

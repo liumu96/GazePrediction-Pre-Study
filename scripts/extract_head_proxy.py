@@ -33,6 +33,7 @@ from adt_sandbox.head import (  # noqa: E402
     write_head_summary_json,
 )
 from adt_sandbox.providers import create_adt_providers  # noqa: E402
+from adt_sandbox.results import find_sequence_file  # noqa: E402
 
 load_dotenv(REPO_ROOT / ".env")
 
@@ -48,19 +49,33 @@ def parse_args() -> argparse.Namespace:
         "--input-gaze-csv",
         type=Path,
         default=None,
-        help="Input gaze CSV path. Defaults to outputs/reports/<sequence>_gaze_samples.csv.",
+        help="Input gaze CSV path. Defaults to outputs/reports/sequences/<sequence>/gaze/gaze_samples.csv.",
     )
     parser.add_argument(
         "--output-csv",
         type=Path,
         default=None,
-        help="Output head CSV path. Defaults to outputs/reports/<sequence>_head_samples.csv.",
+        help="Output head CSV path. Overrides --output-dir.",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=None,
+        help=(
+            "Reports root for organized output. Default is outputs/reports; "
+            "writes sequences/<sequence>/head/head_samples.csv."
+        ),
     )
     return parser.parse_args()
 
 
 def default_gaze_csv_path(sequence: Path) -> Path:
-    return REPO_ROOT / "outputs" / "reports" / f"{sequence.name}_gaze_samples.csv"
+    return find_sequence_file(
+        REPO_ROOT / "outputs" / "reports",
+        sequence.name,
+        "gaze",
+        "gaze_samples.csv",
+    )
 
 
 def main() -> None:
@@ -69,7 +84,10 @@ def main() -> None:
     gaze_samples = read_samples_csv(gaze_csv)
 
     providers = create_adt_providers(args.sequence, skeleton_flag=True)
-    output_csv = args.output_csv or default_head_csv_path(providers.sequence_path.name)
+    output_csv = args.output_csv or default_head_csv_path(
+        providers.sequence_path.name,
+        output_dir=args.output_dir,
+    )
     summary_json = default_head_summary_json_path(output_csv)
 
     head_samples = extract_head_samples_at_timestamps(

@@ -24,6 +24,7 @@ from .gaze_dynamics import (
     centered_window_dispersion_deg,
     describe_optional_numbers,
 )
+from .results import sequence_file_path
 
 
 @dataclass(frozen=True)
@@ -517,28 +518,48 @@ def default_scene_gaze_event_features_csv_path(
     sequence_name: str,
     output_dir: str | Path | None = None,
 ) -> Path:
-    return _base_dir(output_dir) / f"{sequence_name}_scene_gaze_event_features.csv"
+    return sequence_file_path(
+        output_dir,
+        sequence_name,
+        "events",
+        "scene_gaze_event_features.csv",
+    )
 
 
 def default_scene_gaze_frame_labels_csv_path(
     sequence_name: str,
     output_dir: str | Path | None = None,
 ) -> Path:
-    return _base_dir(output_dir) / f"{sequence_name}_scene_gaze_frame_labels.csv"
+    return sequence_file_path(
+        output_dir,
+        sequence_name,
+        "events",
+        "scene_gaze_frame_labels.csv",
+    )
 
 
 def default_scene_gaze_event_segments_csv_path(
     sequence_name: str,
     output_dir: str | Path | None = None,
 ) -> Path:
-    return _base_dir(output_dir) / f"{sequence_name}_scene_gaze_event_segments.csv"
+    return sequence_file_path(
+        output_dir,
+        sequence_name,
+        "events",
+        "scene_gaze_event_segments.csv",
+    )
 
 
 def default_scene_gaze_event_summary_json_path(
     sequence_name: str,
     output_dir: str | Path | None = None,
 ) -> Path:
-    return _base_dir(output_dir) / f"{sequence_name}_scene_gaze_event_summary.json"
+    return sequence_file_path(
+        output_dir,
+        sequence_name,
+        "events",
+        "scene_gaze_event_summary.json",
+    )
 
 
 def write_summary_json(path: str | Path, summary: dict[str, Any]) -> None:

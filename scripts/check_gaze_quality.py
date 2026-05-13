@@ -11,7 +11,7 @@ zh-CN:
 
 Example:
     python scripts/check_gaze_quality.py
-    python scripts/check_gaze_quality.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+    python scripts/check_gaze_quality.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured
 """
 
 from __future__ import annotations
@@ -28,6 +28,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from adt_sandbox.gaze import read_gaze_summary_json  # noqa: E402
+from adt_sandbox.results import batch_dir, discover_sequence_files  # noqa: E402
 
 DEFAULT_RATIO_THRESHOLD = 0.95
 
@@ -63,9 +64,16 @@ def discover_summary_paths(reports_dir: Path) -> list[Path]:
     if not reports_dir.is_dir():
         raise NotADirectoryError(f"Expected reports directory: {reports_dir}")
 
-    summary_paths = sorted(reports_dir.glob("*_gaze_summary.json"))
+    summary_paths = [
+        item.path
+        for item in discover_sequence_files(
+            reports_dir,
+            "gaze",
+            "gaze_summary.json",
+        )
+    ]
     if not summary_paths:
-        raise ValueError(f"No *_gaze_summary.json files found in: {reports_dir}")
+        raise ValueError(f"No gaze summary JSON files found in: {reports_dir}")
     return summary_paths
 
 
@@ -261,7 +269,7 @@ def print_report(rows: list[dict[str, Any]], report: dict[str, Any], csv_path: P
 def main() -> None:
     args = parse_args()
     reports_dir = args.reports_dir
-    output_dir = args.output_dir or reports_dir
+    output_dir = args.output_dir or batch_dir(reports_dir)
     summary_paths = discover_summary_paths(reports_dir)
     summaries = [read_gaze_summary_json(path) for path in summary_paths]
     rows = [row_from_summary(path, summary) for path, summary in zip(summary_paths, summaries)]

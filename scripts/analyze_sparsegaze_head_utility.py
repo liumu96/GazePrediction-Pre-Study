@@ -43,6 +43,7 @@ from adt_sandbox.sparsegaze_head_utility import (  # noqa: E402
     build_sparse_anchor_utility_rows,
     rows_to_dicts,
 )
+from adt_sandbox.results import batch_dir, discover_sequence_names as discover_feature_sequence_names, sequence_file_path, find_sequence_file  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -90,7 +91,6 @@ def main() -> None:
     args = parse_args()
     reports_dir = args.reports_dir
     output_dir = args.output_dir or reports_dir
-    output_dir.mkdir(parents=True, exist_ok=True)
     sequence_names = (
         list(args.sequence_names)
         if args.sequence_names
@@ -131,12 +131,18 @@ def main() -> None:
 
         summary_dicts = rows_to_dicts(summary_rows)
         lead_lag_dicts = rows_to_dicts(lead_lag_rows)
+        sequence_output_dir = sequence_file_path(
+            output_dir,
+            sequence_name,
+            "analysis",
+            "sparsegaze_head_utility_summary.csv",
+        ).parent
         write_csv(
-            output_dir / f"{sequence_name}_sparsegaze_head_utility_summary.csv",
+            sequence_output_dir / "sparsegaze_head_utility_summary.csv",
             summary_dicts,
         )
         write_csv(
-            output_dir / f"{sequence_name}_sparsegaze_head_utility_lead_lag.csv",
+            sequence_output_dir / "sparsegaze_head_utility_lead_lag.csv",
             lead_lag_dicts,
         )
         all_summary_rows.extend(summary_dicts)
@@ -152,21 +158,22 @@ def main() -> None:
     summary_aggregate = aggregate_summary_rows_from_dicts(all_summary_rows)
     lead_lag_aggregate = aggregate_lead_lag_rows_from_dicts(all_lead_lag_rows)
 
-    write_csv(output_dir / "batch_sparsegaze_head_utility_summary.csv", all_summary_rows)
+    batch_output_dir = batch_dir(output_dir)
+    write_csv(batch_output_dir / "batch_sparsegaze_head_utility_summary.csv", all_summary_rows)
     write_csv(
-        output_dir / "batch_sparsegaze_head_utility_lead_lag.csv",
+        batch_output_dir / "batch_sparsegaze_head_utility_lead_lag.csv",
         all_lead_lag_rows,
     )
     write_csv(
-        output_dir / "batch_sparsegaze_head_utility_aggregate.csv",
+        batch_output_dir / "batch_sparsegaze_head_utility_aggregate.csv",
         summary_aggregate,
     )
     write_csv(
-        output_dir / "batch_sparsegaze_head_utility_lead_lag_aggregate.csv",
+        batch_output_dir / "batch_sparsegaze_head_utility_lead_lag_aggregate.csv",
         lead_lag_aggregate,
     )
     write_json(
-        output_dir / "batch_sparsegaze_head_utility_report.json",
+        batch_output_dir / "batch_sparsegaze_head_utility_report.json",
         {
             "sequence_count": len(sequence_names),
             "reports_dir": str(reports_dir),
@@ -196,21 +203,35 @@ def main() -> None:
         },
     )
     print(f"sequences: {len(sequence_names)}")
-    print(f"summary_csv: {output_dir / 'batch_sparsegaze_head_utility_summary.csv'}")
+    print(f"summary_csv: {batch_output_dir / 'batch_sparsegaze_head_utility_summary.csv'}")
     print(
-        f"lead_lag_csv: {output_dir / 'batch_sparsegaze_head_utility_lead_lag.csv'}"
+        f"lead_lag_csv: {batch_output_dir / 'batch_sparsegaze_head_utility_lead_lag.csv'}"
     )
-    print(f"report_json: {output_dir / 'batch_sparsegaze_head_utility_report.json'}")
+    print(f"report_json: {batch_output_dir / 'batch_sparsegaze_head_utility_report.json'}")
 
 
 def discover_sequence_names(reports_dir: Path) -> list[str]:
     if not reports_dir.exists():
         raise FileNotFoundError(f"Reports directory does not exist: {reports_dir}")
-    names: list[str] = []
-    for gaze_csv in sorted(reports_dir.glob("*_gaze_samples.csv")):
-        sequence_name = gaze_csv.stem[: -len("_gaze_samples")]
-        if all(path.exists() for path in input_paths(reports_dir, sequence_name).values()):
-            names.append(sequence_name)
+    name_sets = [
+        set(discover_feature_sequence_names(reports_dir, "gaze", "gaze_samples.csv")),
+        set(discover_feature_sequence_names(reports_dir, "head", "head_samples.csv")),
+        set(
+            discover_feature_sequence_names(
+                reports_dir,
+                "events",
+                "scene_gaze_event_features.csv",
+            )
+        ),
+        set(
+            discover_feature_sequence_names(
+                reports_dir,
+                "events",
+                "scene_gaze_frame_labels.csv",
+            )
+        ),
+    ]
+    names = sorted(set.intersection(*name_sets))
     if not names:
         raise ValueError(f"No complete SparseGaze head-utility input sets found in: {reports_dir}")
     return names
@@ -218,11 +239,30 @@ def discover_sequence_names(reports_dir: Path) -> list[str]:
 
 def input_paths(reports_dir: Path, sequence_name: str) -> dict[str, Path]:
     return {
-        "gaze_csv": reports_dir / f"{sequence_name}_gaze_samples.csv",
-        "head_csv": reports_dir / f"{sequence_name}_head_samples.csv",
-        "scene_features_csv": reports_dir
-        / f"{sequence_name}_scene_gaze_event_features.csv",
-        "scene_labels_csv": reports_dir / f"{sequence_name}_scene_gaze_frame_labels.csv",
+        "gaze_csv": find_sequence_file(
+            reports_dir,
+            sequence_name,
+            "gaze",
+            "gaze_samples.csv",
+        ),
+        "head_csv": find_sequence_file(
+            reports_dir,
+            sequence_name,
+            "head",
+            "head_samples.csv",
+        ),
+        "scene_features_csv": find_sequence_file(
+            reports_dir,
+            sequence_name,
+            "events",
+            "scene_gaze_event_features.csv",
+        ),
+        "scene_labels_csv": find_sequence_file(
+            reports_dir,
+            sequence_name,
+            "events",
+            "scene_gaze_frame_labels.csv",
+        ),
     }
 
 

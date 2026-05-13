@@ -15,6 +15,8 @@ import matplotlib.pyplot as plt
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
+from adt_sandbox.results import batch_dir  # noqa: E402
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -42,10 +44,10 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     summary_rows = read_csv(
-        args.reports_dir / "batch_sparsegaze_head_utility_aggregate.csv"
+        existing_batch_file(args.reports_dir, "batch_sparsegaze_head_utility_aggregate.csv")
     )
     lead_lag_rows = read_csv(
-        args.reports_dir / "batch_sparsegaze_head_utility_lead_lag_aggregate.csv"
+        existing_batch_file(args.reports_dir, "batch_sparsegaze_head_utility_lead_lag_aggregate.csv")
     )
     if not summary_rows:
         raise ValueError("SparseGaze head-utility aggregate summary is empty")
@@ -533,6 +535,13 @@ def markdown_table(rows: list[list[str]], headers: list[str]) -> list[str]:
 def read_csv(path: Path) -> list[dict[str, Any]]:
     with path.open("r", newline="", encoding="utf-8") as handle:
         return list(csv.DictReader(handle))
+
+
+def existing_batch_file(reports_dir: Path, filename: str) -> Path:
+    path = batch_dir(reports_dir) / filename
+    if path.exists():
+        return path
+    raise FileNotFoundError(f"Missing batch file: {path}")
 
 
 def relative_markdown_path(path: Path, base_dir: Path) -> str:

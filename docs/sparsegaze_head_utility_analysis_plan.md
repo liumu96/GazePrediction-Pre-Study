@@ -10,12 +10,12 @@ Scripts:
 - `scripts/analyze_sparsegaze_head_utility.py`
 - `scripts/report_sparsegaze_head_utility.py`
 
-The full `/mnt/d/SparseGaze/ADT-Gaze` export has been processed. Main outputs:
+The full `/mnt/d/SparseGaze/ADT-Gaze-structured` export has been processed. Main outputs:
 
-- `/mnt/d/SparseGaze/ADT-Gaze/batch_sparsegaze_head_utility_summary.csv`
-- `/mnt/d/SparseGaze/ADT-Gaze/batch_sparsegaze_head_utility_lead_lag.csv`
-- `/mnt/d/SparseGaze/ADT-Gaze/batch_sparsegaze_head_utility_aggregate.csv`
-- `/mnt/d/SparseGaze/ADT-Gaze/batch_sparsegaze_head_utility_lead_lag_aggregate.csv`
+- `/mnt/d/SparseGaze/ADT-Gaze-structured/batch/batch_sparsegaze_head_utility_summary.csv`
+- `/mnt/d/SparseGaze/ADT-Gaze-structured/batch/batch_sparsegaze_head_utility_lead_lag.csv`
+- `/mnt/d/SparseGaze/ADT-Gaze-structured/batch/batch_sparsegaze_head_utility_aggregate.csv`
+- `/mnt/d/SparseGaze/ADT-Gaze-structured/batch/batch_sparsegaze_head_utility_lead_lag_aggregate.csv`
 - `docs/sparsegaze_head_utility_report.md`
 - `outputs/figures/sparsegaze_head_utility/*.png`
 
@@ -217,7 +217,7 @@ but not available causally, which explains weak model gains.
 
 ## 3. Data Inputs
 
-For ADT, use the current derived files in `/mnt/d/SparseGaze/ADT-Gaze`:
+For ADT, use the current derived files in `/mnt/d/SparseGaze/ADT-Gaze-structured`:
 
 - `*_gaze_samples.csv`
 - `*_head_samples.csv`

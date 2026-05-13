@@ -24,6 +24,8 @@ from typing import Any
 
 import numpy as np
 
+from .results import sequence_file_path
+
 from .gaze_dynamics import compute_gaze_dynamics_features, describe_optional_numbers
 from .gaze import GazeSample
 from .head import HeadSample, relative_rotation_prev_to_cur_matrix
@@ -394,18 +396,20 @@ def default_head_gaze_analysis_rows_csv_path(
     sequence_name: str,
     output_dir: str | Path | None = None,
 ) -> Path:
-    base_dir = (
-        Path(output_dir)
-        if output_dir is not None
-        else Path(__file__).resolve().parents[2] / "outputs" / "reports"
+    return sequence_file_path(
+        output_dir,
+        sequence_name,
+        "analysis",
+        "head_gaze_analysis_rows.csv",
     )
-    return base_dir / f"{sequence_name}_head_gaze_analysis_rows.csv"
 
 
 def default_head_gaze_analysis_summary_json_path(csv_path: str | Path) -> Path:
     csv_file = Path(csv_path)
     stem = csv_file.stem
-    if stem.endswith("_head_gaze_analysis_rows"):
+    if stem == "head_gaze_analysis_rows":
+        stem = "head_gaze_analysis_summary"
+    elif stem.endswith("_head_gaze_analysis_rows"):
         stem = stem[: -len("_head_gaze_analysis_rows")] + "_head_gaze_analysis_summary"
     else:
         stem = f"{stem}_summary"

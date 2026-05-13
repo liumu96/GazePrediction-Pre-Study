@@ -30,6 +30,7 @@ from adt_sandbox.head import (  # noqa: E402
     write_head_summary_json,
 )
 from adt_sandbox.providers import create_adt_providers  # noqa: E402
+from adt_sandbox.results import discover_sequence_files  # noqa: E402
 
 load_dotenv(REPO_ROOT / ".env")
 
@@ -56,9 +57,16 @@ def discover_gaze_csv_paths(reports_dir: Path) -> list[Path]:
         raise FileNotFoundError(f"Reports directory does not exist: {reports_dir}")
     if not reports_dir.is_dir():
         raise NotADirectoryError(f"Expected reports directory: {reports_dir}")
-    gaze_csv_paths = sorted(reports_dir.glob("*_gaze_samples.csv"))
+    gaze_csv_paths = [
+        item.path
+        for item in discover_sequence_files(
+            reports_dir,
+            "gaze",
+            "gaze_samples.csv",
+        )
+    ]
     if not gaze_csv_paths:
-        raise ValueError(f"No *_gaze_samples.csv files found in: {reports_dir}")
+        raise ValueError(f"No gaze sample CSV files found in: {reports_dir}")
     return gaze_csv_paths
 
 

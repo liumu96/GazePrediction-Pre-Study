@@ -64,7 +64,7 @@ gaze”的简单假设。
 
 This report evaluates whether head motion contains useful information for recovering high-frequency gaze between sparse gaze anchors. It is not a full model evaluation; it is a diagnostic step before changing the SparseGaze model.
 
-- Input directory: `/mnt/d/SparseGaze/ADT-Gaze`
+- Input directory: `/mnt/d/SparseGaze/ADT-Gaze-structured`
 - Sequence count: 34
 - Required inputs: `*_gaze_samples.csv`, `*_head_samples.csv`, `*_scene_gaze_event_features.csv`, `*_scene_gaze_frame_labels.csv`
 

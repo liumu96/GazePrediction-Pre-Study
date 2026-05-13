@@ -17,6 +17,8 @@ from typing import Any
 
 import numpy as np
 
+from .results import sequence_file_path
+
 
 HEAD_FIELD_COORDINATE_FRAMES = {
     "query_timestamp_ns": "device_time_ns",
@@ -648,7 +650,9 @@ def head_sample_from_csv_row(row: dict[str, str]) -> HeadSample:
 def default_head_summary_json_path(csv_path: str | Path) -> Path:
     csv_file = Path(csv_path)
     stem = csv_file.stem
-    if stem.endswith("_head_samples"):
+    if stem == "head_samples":
+        stem = "head_summary"
+    elif stem.endswith("_head_samples"):
         stem = stem[: -len("_head_samples")] + "_head_summary"
     else:
         stem = f"{stem}_summary"
@@ -656,12 +660,7 @@ def default_head_summary_json_path(csv_path: str | Path) -> Path:
 
 
 def default_head_csv_path(sequence_name: str, output_dir: str | Path | None = None) -> Path:
-    base_dir = (
-        Path(output_dir)
-        if output_dir is not None
-        else Path(__file__).resolve().parents[2] / "outputs" / "reports"
-    )
-    return base_dir / f"{sequence_name}_head_samples.csv"
+    return sequence_file_path(output_dir, sequence_name, "head", "head_samples.csv")
 
 
 def describe_optional_numbers(values: Sequence[float | None]) -> dict[str, float | int | None]:

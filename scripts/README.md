@@ -10,6 +10,10 @@
 - `inspect_adt_sequence.py`: inspect one ADT sequence directory or one sequence
   id resolved under `ADT_DATA_ROOT`。用于快速检查一个 ADT sequence 的文件
   完整性和基本统计。
+- `organize_flat_reports.py`: copy an old flat reports directory into the
+  sequence-first organized layout。它只复制文件，不删除旧目录；用于把
+  `/mnt/d/SparseGaze/ADT-Gaze` 这类平铺结果组织成
+  `sequences/<sequence>/<layer>/...` 和 `batch/...`。
 - `extract_gaze_samples.py`: extract gaze at selected RGB timestamps, validate
   it, and write a gaze CSV plus a lightweight quality summary JSON。用于先把
   gaze 的核心数据和质量指标保存下来。
@@ -100,7 +104,7 @@ python scripts/batch_extract_gaze_samples.py <sequence_id_1> <sequence_id_2> --s
 如果批量提取已经完成，只想汇总 sequence 质量：
 
 ```bash
-python scripts/check_gaze_quality.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+python scripts/check_gaze_quality.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
 如果要检查一个 sequence 的 scene/object/skeleton assets：
@@ -114,7 +118,7 @@ python scripts/inspect_scene_assets.py Apartment_release_decoration_skeleton_seq
 ```bash
 python scripts/extract_scene_object_boxes.py \
   Apartment_release_decoration_skeleton_seq131_M1292 \
-  --output-dir /mnt/d/SparseGaze/ADT-Gaze
+  --output-dir /mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
 输出：
@@ -125,7 +129,7 @@ python scripts/extract_scene_object_boxes.py \
 批量导出：
 
 ```bash
-python scripts/batch_extract_scene_object_boxes.py --output-dir /mnt/d/SparseGaze/ADT-Gaze
+python scripts/batch_extract_scene_object_boxes.py --output-dir /mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
 批量输出：
@@ -138,15 +142,15 @@ python scripts/batch_extract_scene_object_boxes.py --output-dir /mnt/d/SparseGaz
 ```bash
 conda run -n adt python scripts/extract_skeleton_samples.py \
   Apartment_release_decoration_skeleton_seq131_M1292 \
-  --input-gaze-csv /mnt/d/SparseGaze/ADT-Gaze/Apartment_release_decoration_skeleton_seq131_M1292_gaze_samples.csv \
-  --output-dir /mnt/d/SparseGaze/ADT-Gaze
+  --input-gaze-csv /mnt/d/SparseGaze/ADT-Gaze-structured/sequences/Apartment_release_decoration_skeleton_seq131_M1292/gaze/gaze_samples.csv \
+  --output-dir /mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
 批量导出：
 
 ```bash
 conda run -n adt python scripts/batch_extract_skeleton_samples.py \
-  --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+  --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
 输出：
@@ -159,25 +163,27 @@ conda run -n adt python scripts/batch_extract_skeleton_samples.py \
 如果要为 gaze dynamics 或 head-gaze 关系分析先提 head features：
 
 ```bash
-python scripts/extract_head_proxy.py <sequence_id> --input-gaze-csv /mnt/d/SparseGaze/ADT-Gaze/<sequence_id>_gaze_samples.csv
+python scripts/extract_head_proxy.py <sequence_id> \
+  --input-gaze-csv /mnt/d/SparseGaze/ADT-Gaze-structured/sequences/<sequence_id>/gaze/gaze_samples.csv \
+  --output-dir /mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
 如果要批量提 head proxy：
 
 ```bash
-python scripts/batch_extract_head_proxy.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+python scripts/batch_extract_head_proxy.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
 如果要继续跑 whole-sequence CPF-local gaze dynamics features：
 
 ```bash
-python scripts/compute_gaze_dynamics_features.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+python scripts/compute_gaze_dynamics_features.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
 如果要生成第一版 scene-direction event labels：
 
 ```bash
-python scripts/detect_scene_gaze_events.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+python scripts/detect_scene_gaze_events.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
 默认阈值：
@@ -199,7 +205,7 @@ python scripts/detect_scene_gaze_events.py --reports-dir /mnt/d/SparseGaze/ADT-G
 ```bash
 python scripts/visualize_scene_gaze_events.py \
   Apartment_release_decoration_skeleton_seq131_M1292 \
-  --reports-dir /mnt/d/SparseGaze/ADT-Gaze \
+  --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured \
   --start-frame 0 \
   --end-frame 600
 ```
@@ -211,13 +217,13 @@ python scripts/visualize_scene_gaze_events.py \
 先确认 `head_samples.csv` 是新版 schema；如果 D 盘上还是旧导出，先重跑：
 
 ```bash
-python scripts/batch_extract_head_proxy.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+python scripts/batch_extract_head_proxy.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
 然后再运行：
 
 ```bash
-python scripts/analyze_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+python scripts/analyze_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
 脚本只依赖 gaze/head 基础层，生成 geometry / dynamics / temporal diagnostic
@@ -226,14 +232,14 @@ python scripts/analyze_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze
 如果 head-gaze 分析已经跑完，要把结果整理成报告和图表：
 
 ```bash
-python scripts/report_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+python scripts/report_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
 如果要进一步分析 Scene/world gaze dynamics 和 head motion 的关系：
 
 ```bash
-python scripts/analyze_scene_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
-python scripts/report_scene_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+python scripts/analyze_scene_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured
+python scripts/report_scene_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
 这一步读取 scene-direction event outputs，不替代 CPF head-gaze report，而是回答：
@@ -243,8 +249,8 @@ head-gaze dynamics 是否不同。
 如果要分析 head 对 SparseGaze missing-gaze recovery 是否有实际帮助：
 
 ```bash
-python scripts/analyze_sparsegaze_head_utility.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
-python scripts/report_sparsegaze_head_utility.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+python scripts/analyze_sparsegaze_head_utility.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured
+python scripts/report_sparsegaze_head_utility.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
 这一步输出 sparse-anchor residual、lead-lag、current head vs head history 的

@@ -100,7 +100,7 @@ This reports:
 ```bash
 python scripts/extract_scene_object_boxes.py \
   Apartment_release_decoration_skeleton_seq131_M1292 \
-  --output-dir /mnt/d/SparseGaze/ADT-Gaze
+  --output-dir /mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
 Inputs:
@@ -118,7 +118,7 @@ Batch command:
 
 ```bash
 python scripts/batch_extract_scene_object_boxes.py \
-  --output-dir /mnt/d/SparseGaze/ADT-Gaze
+  --output-dir /mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
 Batch output:
@@ -154,15 +154,15 @@ Coordinate-frame definitions:
 ```bash
 conda run -n adt python scripts/extract_skeleton_samples.py \
   Apartment_release_decoration_skeleton_seq131_M1292 \
-  --input-gaze-csv /mnt/d/SparseGaze/ADT-Gaze/Apartment_release_decoration_skeleton_seq131_M1292_gaze_samples.csv \
-  --output-dir /mnt/d/SparseGaze/ADT-Gaze
+  --input-gaze-csv /mnt/d/SparseGaze/ADT-Gaze-structured/sequences/Apartment_release_decoration_skeleton_seq131_M1292/gaze/gaze_samples.csv \
+  --output-dir /mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
 Batch command:
 
 ```bash
 conda run -n adt python scripts/batch_extract_skeleton_samples.py \
-  --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+  --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
 Output:

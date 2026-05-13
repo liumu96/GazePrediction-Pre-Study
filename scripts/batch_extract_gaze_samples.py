@@ -45,6 +45,7 @@ from adt_sandbox.gaze_extraction import (  # noqa: E402
     discover_sequence_paths,
     extract_sequence_gaze,
 )
+from adt_sandbox.results import batch_dir  # noqa: E402
 
 load_dotenv(REPO_ROOT / ".env")
 
@@ -266,8 +267,9 @@ def main() -> None:
         batch_rows.append(row)
         print_sequence_result(index, len(sequences), row)
 
-    batch_csv = output_dir / "batch_gaze_extract_summary.csv"
-    batch_json = output_dir / "batch_gaze_extract_summary.json"
+    batch_output_dir = batch_dir(output_dir)
+    batch_csv = batch_output_dir / "batch_gaze_extract_summary.csv"
+    batch_json = batch_output_dir / "batch_gaze_extract_summary.json"
     write_batch_summary_csv(batch_csv, batch_rows)
     write_batch_summary_json(batch_json, config, batch_rows)
     print(

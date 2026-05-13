@@ -24,6 +24,7 @@ from .head_gaze_analysis import (
     build_head_gaze_analysis_rows,
     pearson_corr,
 )
+from .results import sequence_file_path
 from .scene_gaze_events import SceneGazeEventFeatureRow, SceneGazeFrameLabel
 
 
@@ -338,18 +339,20 @@ def default_scene_head_gaze_analysis_rows_csv_path(
     sequence_name: str,
     output_dir: str | Path | None = None,
 ) -> Path:
-    base_dir = (
-        Path(output_dir)
-        if output_dir is not None
-        else Path(__file__).resolve().parents[2] / "outputs" / "reports"
+    return sequence_file_path(
+        output_dir,
+        sequence_name,
+        "analysis",
+        "scene_head_gaze_analysis_rows.csv",
     )
-    return base_dir / f"{sequence_name}_scene_head_gaze_analysis_rows.csv"
 
 
 def default_scene_head_gaze_analysis_summary_json_path(csv_path: str | Path) -> Path:
     csv_file = Path(csv_path)
     stem = csv_file.stem
-    if stem.endswith("_scene_head_gaze_analysis_rows"):
+    if stem == "scene_head_gaze_analysis_rows":
+        stem = "scene_head_gaze_analysis_summary"
+    elif stem.endswith("_scene_head_gaze_analysis_rows"):
         stem = (
             stem[: -len("_scene_head_gaze_analysis_rows")]
             + "_scene_head_gaze_analysis_summary"

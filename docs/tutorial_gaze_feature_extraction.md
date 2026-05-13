@@ -119,7 +119,7 @@ python scripts/batch_extract_gaze_samples.py \
 如果批量提取已经完成，下一步可以只读取这些 `gaze_summary.json` 做质量汇总：
 
 ```bash
-python scripts/check_gaze_quality.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+python scripts/check_gaze_quality.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
 它会输出：
@@ -137,7 +137,7 @@ python scripts/check_gaze_quality.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
 
 ```bash
 python scripts/extract_head_proxy.py <sequence_id> \
-  --input-gaze-csv /mnt/d/SparseGaze/ADT-Gaze/<sequence_id>_gaze_samples.csv
+  --input-gaze-csv /mnt/d/SparseGaze/ADT-Gaze-structured/sequences/<sequence_id>/gaze/gaze_samples.csv
 ```
 
 第一版 head 不从 skeleton 提取，而是使用 `device pose + CPF` 作为 head proxy。
@@ -153,13 +153,13 @@ python scripts/extract_head_proxy.py <sequence_id> \
 head CSV 不再用于这一步；如果 D 盘上还是旧导出，先重跑：
 
 ```bash
-python scripts/batch_extract_head_proxy.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+python scripts/batch_extract_head_proxy.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
 然后再运行：
 
 ```bash
-python scripts/analyze_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+python scripts/analyze_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
 它会直接消费已经落盘的：
@@ -187,7 +187,7 @@ python scripts/analyze_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze
 如果后面需要 CPF-local gaze dynamics features，运行：
 
 ```
-python scripts/compute_gaze_dynamics_features.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+python scripts/compute_gaze_dynamics_features.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
 这一步只保存 `*_gaze_dynamics.csv`，不生成 CPF-based fixation labels。当前结论见：
@@ -197,13 +197,13 @@ python scripts/compute_gaze_dynamics_features.py --reports-dir /mnt/d/SparseGaze
 如果后面需要第一版 scene-direction event labels，运行：
 
 ```bash
-python scripts/detect_scene_gaze_events.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+python scripts/detect_scene_gaze_events.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
 这一步基于 `gaze_dir_scene_unit_xyz`，输出 `*_scene_gaze_frame_labels.csv`
 和 `*_scene_gaze_event_segments.csv`。
 
-当前状态：`/mnt/d/SparseGaze/ADT-Gaze` 已经完成全量 scene-direction event
+当前状态：`/mnt/d/SparseGaze/ADT-Gaze-structured` 已经完成全量 scene-direction event
 导出，`batch_scene_gaze_event_summary.csv` 已生成。
 
 如果要检查某个 sequence 的某段 event label：
@@ -211,7 +211,7 @@ python scripts/detect_scene_gaze_events.py --reports-dir /mnt/d/SparseGaze/ADT-G
 ```bash
 python scripts/visualize_scene_gaze_events.py \
   Apartment_release_decoration_skeleton_seq131_M1292 \
-  --reports-dir /mnt/d/SparseGaze/ADT-Gaze \
+  --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured \
   --start-frame 0 \
   --end-frame 600
 ```

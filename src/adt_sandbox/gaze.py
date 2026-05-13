@@ -693,7 +693,9 @@ def default_summary_json_path(csv_path: os.PathLike[str] | str) -> Path:
 
     csv_file = Path(csv_path)
     stem = csv_file.stem
-    if stem.endswith("_gaze_samples"):
+    if stem == "gaze_samples":
+        stem = "gaze_summary"
+    elif stem.endswith("_gaze_samples"):
         stem = stem[: -len("_gaze_samples")] + "_gaze_summary"
     else:
         stem = f"{stem}_summary"

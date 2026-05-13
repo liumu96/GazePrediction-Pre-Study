@@ -21,6 +21,7 @@ from adt_sandbox.skeleton_features import (  # noqa: E402
     write_json,
     write_skeleton_samples_csv,
 )
+from adt_sandbox.results import find_sequence_file  # noqa: E402
 
 load_dotenv(REPO_ROOT / ".env")
 
@@ -37,8 +38,8 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=None,
         help=(
-            "Existing `<sequence>_gaze_samples.csv` whose timestamps define the "
-            "output rows. Default: outputs/reports/<sequence>_gaze_samples.csv."
+            "Existing gaze_samples.csv whose timestamps define the output rows. "
+            "Default: outputs/reports/sequences/<sequence>/gaze/gaze_samples.csv."
         ),
     )
     parser.add_argument(
@@ -66,8 +67,11 @@ def main() -> None:
     args = parse_args()
     sequence_dir = resolve_sequence_path(args.sequence)
     sequence_name = sequence_dir.name
-    input_gaze_csv = args.input_gaze_csv or (
-        REPO_ROOT / "outputs" / "reports" / f"{sequence_name}_gaze_samples.csv"
+    input_gaze_csv = args.input_gaze_csv or find_sequence_file(
+        REPO_ROOT / "outputs" / "reports",
+        sequence_name,
+        "gaze",
+        "gaze_samples.csv",
     )
     output_csv = args.output_csv or default_skeleton_samples_csv_path(
         sequence_name,

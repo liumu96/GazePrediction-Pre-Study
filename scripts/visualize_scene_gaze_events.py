@@ -11,7 +11,7 @@ Run `detect_scene_gaze_events.py` first. This script reads the generated
 Example:
     python scripts/visualize_scene_gaze_events.py \
       Apartment_release_decoration_skeleton_seq131_M1292 \
-      --reports-dir /mnt/d/SparseGaze/ADT-Gaze \
+      --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured \
       --start-frame 0 \
       --end-frame 600
 """
@@ -34,13 +34,11 @@ from adt_sandbox.scene_gaze_events import (  # noqa: E402
     SceneGazeEventFeatureRow,
     SceneGazeEventSegment,
     SceneGazeFrameLabel,
-    default_scene_gaze_event_features_csv_path,
-    default_scene_gaze_event_segments_csv_path,
-    default_scene_gaze_frame_labels_csv_path,
     read_scene_gaze_event_features_csv,
     read_scene_gaze_event_segments_csv,
     read_scene_gaze_frame_labels_csv,
 )
+from adt_sandbox.results import find_sequence_file  # noqa: E402
 
 
 LABEL_COLORS = {
@@ -138,17 +136,20 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     sequence = Path(args.sequence).name
-    feature_csv = args.features_csv or default_scene_gaze_event_features_csv_path(
+    feature_csv = args.features_csv or resolve_scene_event_file(
+        args.reports_dir,
         sequence,
-        output_dir=args.reports_dir,
+        "scene_gaze_event_features.csv",
     )
-    label_csv = args.labels_csv or default_scene_gaze_frame_labels_csv_path(
+    label_csv = args.labels_csv or resolve_scene_event_file(
+        args.reports_dir,
         sequence,
-        output_dir=args.reports_dir,
+        "scene_gaze_frame_labels.csv",
     )
-    segment_csv = args.segments_csv or default_scene_gaze_event_segments_csv_path(
+    segment_csv = args.segments_csv or resolve_scene_event_file(
+        args.reports_dir,
         sequence,
-        output_dir=args.reports_dir,
+        "scene_gaze_event_segments.csv",
     )
 
     require_file(feature_csv, "scene event features")
@@ -194,6 +195,14 @@ def main() -> None:
     print(f"segments_csv: {segment_csv}")
     print(f"frames: {start_frame}..{end_frame}")
     print(f"figure: {output_path}")
+
+
+def resolve_scene_event_file(
+    reports_dir: Path,
+    sequence: str,
+    filename: str,
+) -> Path:
+    return find_sequence_file(reports_dir, sequence, "events", filename)
 
 
 def require_file(path: Path, description: str) -> None:

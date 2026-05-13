@@ -4,19 +4,19 @@
 
 ## Run Context / 运行背景
 
-- reports directory: `/mnt/d/SparseGaze/ADT-Gaze`
+- reports directory: `/mnt/d/SparseGaze/ADT-Gaze-structured`
 - command:
 
 ```bash
-python scripts/check_gaze_quality.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+python scripts/check_gaze_quality.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
 - sequence count: `34`
 
 生成的结果文件：
 
-- `/mnt/d/SparseGaze/ADT-Gaze/gaze_quality_report.csv`
-- `/mnt/d/SparseGaze/ADT-Gaze/gaze_quality_report.json`
+- `/mnt/d/SparseGaze/ADT-Gaze-structured/batch/gaze_quality_report.csv`
+- `/mnt/d/SparseGaze/ADT-Gaze-structured/batch/gaze_quality_report.json`
 
 ## High-Level Result / 总体结论
 

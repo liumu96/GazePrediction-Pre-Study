@@ -22,6 +22,7 @@ from adt_sandbox.scene_features import (  # noqa: E402
     write_json,
     write_scene_object_boxes_csv,
 )
+from adt_sandbox.results import batch_dir  # noqa: E402
 
 load_dotenv(REPO_ROOT / ".env")
 
@@ -79,9 +80,9 @@ def main() -> None:
             f"timestamps={summary['unique_timestamp_count']}"
         )
 
-    args.output_dir.mkdir(parents=True, exist_ok=True)
-    batch_csv = args.output_dir / "batch_scene_object_boxes_summary.csv"
-    batch_json = args.output_dir / "batch_scene_object_boxes_report.json"
+    batch_output_dir = batch_dir(args.output_dir)
+    batch_csv = batch_output_dir / "batch_scene_object_boxes_summary.csv"
+    batch_json = batch_output_dir / "batch_scene_object_boxes_report.json"
     write_batch_csv(batch_csv, batch_rows)
     write_json(
         batch_json,

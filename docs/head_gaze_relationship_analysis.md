@@ -68,7 +68,7 @@ scene/object fixation。因此，旧的 CPF-based `IDT / IVT / combined fixation
 ### 3.1 计算 CPF-local gaze dynamics
 
 ```bash
-python scripts/compute_gaze_dynamics_features.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+python scripts/compute_gaze_dynamics_features.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
 输出：
@@ -82,7 +82,7 @@ python scripts/compute_gaze_dynamics_features.py --reports-dir /mnt/d/SparseGaze
 ### 3.2 分析 head-gaze relationship
 
 ```bash
-python scripts/analyze_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+python scripts/analyze_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
 输出：
@@ -98,7 +98,7 @@ python scripts/analyze_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze
 ### 3.3 生成报告
 
 ```bash
-python scripts/report_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+python scripts/report_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
 输出：
@@ -111,8 +111,8 @@ python scripts/report_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze/
 ### 3.4 分析 Scene-level head-gaze relationship
 
 ```bash
-python scripts/analyze_scene_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
-python scripts/report_scene_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+python scripts/analyze_scene_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured
+python scripts/report_scene_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
 输出：
@@ -222,7 +222,7 @@ Scene-level report 的新增结论：
 - scene gaze angular velocity / dispersion
 
 ```bash
-python scripts/detect_scene_gaze_events.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+python scripts/detect_scene_gaze_events.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
 输出与当前 CPF dynamics 明确分开：

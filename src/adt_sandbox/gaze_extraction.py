@@ -18,6 +18,7 @@ from .gaze import (
     write_samples_csv,
 )
 from .providers import create_adt_providers
+from .results import sequence_file_path
 
 
 @dataclass(frozen=True)
@@ -66,12 +67,7 @@ def default_gaze_csv_path(
 ) -> Path:
     """Return the default per-sequence gaze CSV path."""
 
-    base_dir = (
-        Path(output_dir)
-        if output_dir is not None
-        else Path(__file__).resolve().parents[2] / "outputs" / "reports"
-    )
-    return base_dir / f"{sequence_name}_gaze_samples.csv"
+    return sequence_file_path(output_dir, sequence_name, "gaze", "gaze_samples.csv")
 
 
 def extract_sequence_gaze(

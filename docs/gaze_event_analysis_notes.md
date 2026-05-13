@@ -56,7 +56,7 @@ CPF-local velocity / dispersion 有用，但 CPF-thresholded fixation labels 不
 计算 CPF-local gaze dynamics：
 
 ```bash
-python scripts/compute_gaze_dynamics_features.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+python scripts/compute_gaze_dynamics_features.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
 输出：
@@ -72,10 +72,10 @@ python scripts/compute_gaze_dynamics_features.py --reports-dir /mnt/d/SparseGaze
 第一版 scene-direction event 已实现：
 
 ```bash
-python scripts/detect_scene_gaze_events.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
+python scripts/detect_scene_gaze_events.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
-当前状态：`/mnt/d/SparseGaze/ADT-Gaze` 已经完成全量 scene-direction event
+当前状态：`/mnt/d/SparseGaze/ADT-Gaze-structured` 已经完成全量 scene-direction event
 导出，包含逐帧 feature、逐帧 label、event segments 和 batch summary。
 
 它基于 `gaze_dir_scene_unit_xyz` 计算：
@@ -105,7 +105,7 @@ and segment_duration_ms >= 133
 ```bash
 python scripts/visualize_scene_gaze_events.py \
   Apartment_release_decoration_skeleton_seq131_M1292 \
-  --reports-dir /mnt/d/SparseGaze/ADT-Gaze \
+  --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured \
   --start-frame 0 \
   --end-frame 600
 ```

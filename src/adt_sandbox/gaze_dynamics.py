@@ -17,6 +17,8 @@ from typing import Any
 
 import numpy as np
 
+from .results import sequence_file_path
+
 from .gaze import GazeSample, csv_bool, csv_int, csv_optional_float
 from .head import HeadSample
 
@@ -301,18 +303,15 @@ def default_gaze_dynamics_csv_path(
     sequence_name: str,
     output_dir: str | Path | None = None,
 ) -> Path:
-    base_dir = (
-        Path(output_dir)
-        if output_dir is not None
-        else Path(__file__).resolve().parents[2] / "outputs" / "reports"
-    )
-    return base_dir / f"{sequence_name}_gaze_dynamics.csv"
+    return sequence_file_path(output_dir, sequence_name, "dynamics", "gaze_dynamics.csv")
 
 
 def default_gaze_dynamics_summary_json_path(csv_path: str | Path) -> Path:
     csv_file = Path(csv_path)
     stem = csv_file.stem
-    if stem.endswith("_gaze_dynamics"):
+    if stem == "gaze_dynamics":
+        stem = "gaze_dynamics_summary"
+    elif stem.endswith("_gaze_dynamics"):
         stem = stem[: -len("_gaze_dynamics")] + "_gaze_dynamics_summary"
     else:
         stem = f"{stem}_summary"

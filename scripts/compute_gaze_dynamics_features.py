@@ -35,6 +35,7 @@ from adt_sandbox.gaze_dynamics import (  # noqa: E402
     write_summary_json,
 )
 from adt_sandbox.head import read_head_samples_csv  # noqa: E402
+from adt_sandbox.results import batch_dir, discover_sequence_names as discover_feature_sequence_names, find_sequence_file  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -77,8 +78,18 @@ def main() -> None:
 
     batch_rows: list[dict[str, Any]] = []
     for index, sequence_name in enumerate(sequence_names, start=1):
-        gaze_csv = reports_dir / f"{sequence_name}_gaze_samples.csv"
-        head_csv = reports_dir / f"{sequence_name}_head_samples.csv"
+        gaze_csv = find_sequence_file(
+            reports_dir,
+            sequence_name,
+            "gaze",
+            "gaze_samples.csv",
+        )
+        head_csv = find_sequence_file(
+            reports_dir,
+            sequence_name,
+            "head",
+            "head_samples.csv",
+        )
         gaze_samples = read_samples_csv(gaze_csv)
         head_samples = read_head_samples_csv(head_csv)
         feature_rows = compute_gaze_dynamics_features(
@@ -134,7 +145,7 @@ def main() -> None:
             f"disp_p95={summary['window_dispersion_deg']['p95']:.3f}"
         )
 
-    batch_csv = output_dir / "batch_gaze_dynamics_summary.csv"
+    batch_csv = batch_dir(output_dir) / "batch_gaze_dynamics_summary.csv"
     write_batch_csv(batch_csv, batch_rows)
     print(f"batch_csv: {batch_csv}")
 
@@ -142,15 +153,24 @@ def main() -> None:
 def discover_sequence_names(reports_dir: Path) -> list[str]:
     if not reports_dir.exists():
         raise FileNotFoundError(f"Reports directory does not exist: {reports_dir}")
-    names: list[str] = []
-    for gaze_csv in sorted(reports_dir.glob("*_gaze_samples.csv")):
-        sequence_name = gaze_csv.stem[: -len("_gaze_samples")]
-        head_csv = reports_dir / f"{sequence_name}_head_samples.csv"
-        if head_csv.exists():
-            names.append(sequence_name)
+    gaze_names = set(
+        discover_feature_sequence_names(
+            reports_dir,
+            "gaze",
+            "gaze_samples.csv",
+        )
+    )
+    head_names = set(
+        discover_feature_sequence_names(
+            reports_dir,
+            "head",
+            "head_samples.csv",
+        )
+    )
+    names = sorted(gaze_names & head_names)
     if not names:
         raise ValueError(
-            f"No paired *_gaze_samples.csv and *_head_samples.csv files found in: {reports_dir}"
+            f"No paired gaze/head sample CSV files found in: {reports_dir}"
         )
     return names
 

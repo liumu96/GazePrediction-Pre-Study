@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import csv
 import os
+import sys
 from datetime import date
 from pathlib import Path
 
@@ -13,6 +14,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT / "src"))
+
+from adt_sandbox.results import batch_dir  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -20,8 +24,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--reports-dir",
         type=Path,
-        default=Path("/mnt/d/SparseGaze/ADT-Gaze"),
-        help="Directory containing batch_scene_head_gaze_analysis_summary.csv.",
+        default=Path("/mnt/d/SparseGaze/ADT-Gaze-structured"),
+        help="Organized reports root containing batch scene-head-gaze outputs.",
     )
     parser.add_argument(
         "--figure-dir",
@@ -40,7 +44,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    rows = read_rows(args.reports_dir / "batch_scene_head_gaze_analysis_summary.csv")
+    rows = read_rows(existing_batch_file(args.reports_dir, "batch_scene_head_gaze_analysis_summary.csv"))
     args.figure_dir.mkdir(parents=True, exist_ok=True)
     figures = generate_figures(rows, args.figure_dir)
     markdown = build_markdown(rows, args.output_md, figures)
@@ -55,6 +59,13 @@ def main() -> None:
 def read_rows(path: Path) -> list[dict[str, str]]:
     with path.open("r", newline="", encoding="utf-8") as handle:
         return list(csv.DictReader(handle))
+
+
+def existing_batch_file(reports_dir: Path, filename: str) -> Path:
+    path = batch_dir(reports_dir) / filename
+    if path.exists():
+        return path
+    raise FileNotFoundError(f"Missing batch file: {path}")
 
 
 def generate_figures(rows: list[dict[str, str]], figure_dir: Path) -> dict[str, Path]:

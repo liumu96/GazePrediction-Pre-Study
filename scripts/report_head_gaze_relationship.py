@@ -20,6 +20,7 @@ import argparse
 import csv
 import json
 import os
+import sys
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -28,6 +29,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT / "src"))
+
+from adt_sandbox.results import batch_dir, find_sequence_file  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -35,8 +39,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--reports-dir",
         type=Path,
-        default=Path("/mnt/d/SparseGaze/ADT-Gaze"),
-        help="Directory containing batch_head_gaze_analysis_summary.csv/json.",
+        default=Path("/mnt/d/SparseGaze/ADT-Gaze-structured"),
+        help="Organized reports root containing batch/head-gaze outputs.",
     )
     parser.add_argument(
         "--figure-dir",
@@ -55,8 +59,8 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    summary_csv = args.reports_dir / "batch_head_gaze_analysis_summary.csv"
-    report_json = args.reports_dir / "batch_head_gaze_analysis_report.json"
+    summary_csv = existing_batch_file(args.reports_dir, "batch_head_gaze_analysis_summary.csv")
+    report_json = existing_batch_file(args.reports_dir, "batch_head_gaze_analysis_report.json")
     rows = read_rows(summary_csv)
     report = json.loads(report_json.read_text(encoding="utf-8"))
     sequence_summaries = load_sequence_summaries(args.reports_dir, rows)
@@ -90,9 +94,21 @@ def load_sequence_summaries(
     summaries: dict[str, dict[str, Any]] = {}
     for row in rows:
         sequence_name = row["sequence_name"]
-        path = reports_dir / f"{sequence_name}_head_gaze_analysis_summary.json"
+        path = find_sequence_file(
+            reports_dir,
+            sequence_name,
+            "analysis",
+            "head_gaze_analysis_summary.json",
+        )
         summaries[sequence_name] = json.loads(path.read_text(encoding="utf-8"))
     return summaries
+
+
+def existing_batch_file(reports_dir: Path, filename: str) -> Path:
+    path = batch_dir(reports_dir) / filename
+    if path.exists():
+        return path
+    raise FileNotFoundError(f"Missing batch file: {path}")
 
 
 def generate_figures(
