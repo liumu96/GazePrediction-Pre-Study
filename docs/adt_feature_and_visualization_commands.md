@@ -101,6 +101,7 @@ The repository does not keep runtime fallback logic for this old layout.
 | CPF gaze dynamics | `compute_gaze_dynamics_features.py` | `dynamics/gaze_dynamics.csv` | local eye-in-head velocity / dispersion |
 | Scene gaze events | `detect_scene_gaze_events.py` | `events/scene_gaze_frame_labels.csv`, `events/scene_gaze_event_segments.csv` | world/Scene fixation vs transition labels |
 | Scene object boxes | `batch_extract_scene_object_boxes.py` | `scene/scene_object_boxes.csv` | object cuboids in Scene frame |
+| Gaze-object hits | `batch_compute_gaze_object_hits.py` | `scene/gaze_object_hits.csv` | Scene ray-box first hit and depth-point box check |
 | Skeleton samples | `batch_extract_skeleton_samples.py` | `skeleton/skeleton_samples.csv` | skeleton joints in Scene frame |
 | Head-gaze analysis | `analyze_*`, `report_*` | markdown reports + figures | diagnostic analysis, not base features |
 
@@ -109,8 +110,9 @@ Current scope:
 - CPF dynamics are continuous local motion features, not final fixation labels.
 - Scene gaze events are the current fixation/transition label layer.
 - Object boxes are cuboids, not meshes or textures.
-- Gaze points from `gaze_samples.csv` are ADT depth-defined gaze points, not yet
-  ray-box intersection hit points.
+- Gaze-object hits use ray-box intersection against object cuboids. They are
+  separate from `gaze_point_scene_xyz`, which is the ADT depth-defined gaze
+  point.
 
 ## 0. Inspect One Sequence
 
@@ -322,7 +324,48 @@ Meaning:
 - static objects can be drawn once; dynamic objects need timestamp-specific
   rows.
 
-## 7. Extract Skeleton Samples
+## 7. Compute Gaze-Object Hits
+
+This step answers a different question from `gaze_point_scene_xyz`.
+
+- `gaze_point_scene_xyz` is the ADT depth-defined gaze point.
+- `gaze_object_hits.csv` is the first intersection between the Scene-frame gaze
+  ray and annotated object cuboids.
+- By default, `shelter` is excluded because it is the room envelope and would
+  otherwise dominate point-inside-box statistics.
+
+Single sequence:
+
+```bash
+python scripts/compute_gaze_object_hits.py \
+  Apartment_release_decoration_skeleton_seq131_M1292 \
+  --reports-dir "$REPORTS_DIR"
+```
+
+Batch:
+
+```bash
+python scripts/batch_compute_gaze_object_hits.py --reports-dir "$REPORTS_DIR"
+```
+
+Outputs:
+
+- `sequences/<sequence>/scene/gaze_object_hits.csv`
+- `sequences/<sequence>/scene/gaze_object_hits_summary.json`
+- `batch/batch_gaze_object_hits_summary.csv`
+- `batch/batch_gaze_object_hits_report.json`
+
+Useful columns:
+
+- `object_hit`: whether the gaze ray hits an annotated cuboid.
+- `hit_object_uid`, `hit_category`, `hit_motion_type`: first-hit object label.
+- `hit_distance_m`, `hit_x_m/y_m/z_m`: first-hit point along the ray.
+- `gaze_point_inside_any_box`: whether ADT's depth-defined gaze point is inside
+  any candidate cuboid.
+- `gaze_point_to_hit_distance_m`: difference between the ray-box hit point and
+  ADT's depth-defined gaze point.
+
+## 8. Extract Skeleton Samples
 
 Skeleton extraction should run in the `adt` conda environment because it uses
 the official ADT skeleton provider.
@@ -356,7 +399,7 @@ Meaning:
 - joints are in Scene frame.
 - exported columns include root/head joints and all 51 ADT skeleton joints.
 
-## 8. Analyze Head-Gaze Relationship
+## 9. Analyze Head-Gaze Relationship
 
 CPF-local / geometric head-gaze analysis:
 
@@ -388,7 +431,7 @@ Main reports:
 These analyses are diagnostics. They do not create the base feature layers used
 by the viewer.
 
-## 9. Visualize Gaze Outputs
+## 10. Visualize Gaze Outputs
 
 This opens ADT provider for a selected window and generates overlay/scanpath
 figures and video.
@@ -412,7 +455,7 @@ Use this for:
 - 2D scanpath
 - Scene-frame gaze ray figures
 
-## 10. Visualize Scene Gaze Events
+## 11. Visualize Scene Gaze Events
 
 This does not reopen ADT provider. It only reads event CSVs.
 
@@ -437,7 +480,7 @@ Use this to inspect:
 - Scene angular dispersion
 - event segment boundaries
 
-## 11. Interactive Notebooks
+## 12. Interactive Notebooks
 
 Current notebooks:
 
@@ -453,6 +496,38 @@ Current notebooks:
     depth-defined gaze points.
   - Requires `gaze_samples`, `head_samples`, `scene_object_boxes`, and
     `skeleton_samples`.
+- `notebooks/06_scene_object_gaze_dynamic_viewer.ipynb`
+  - Dynamic Plotly/IPyWidgets scene viewer with play/slider frame control.
+  - Updates dynamic object boxes, skeleton pose, gaze ray, gaze point, ray-box
+    hit point, and current ray-box hit outline over time.
+  - Use larger `frame step`, larger `draw stride`, or fewer static boxes if
+    playback is slow.
+  - Key controls:
+    - `start` / `end`: global frame range available to the play control.
+    - `frame step`: frame increment for the play control and focus slider.
+    - `context`: number of neighboring frames drawn before/after the current
+      focus frame for trajectories and gaze rays.
+    - `draw stride`: subsampling inside the rendered context window.
+    - `max static`: maximum number of static object boxes to draw; `0` means no
+      cap.
+    - `categories`: optional comma-separated object categories to include.
+      Empty means all categories.
+    - `exclude`: comma-separated object categories to hide. Default `shelter`
+      removes the room-envelope box.
+    - `ray scale`: `fixed` draws fixed-length gaze rays for direction
+      comparison; `depth` scales rays by ADT gaze depth.
+    - `ray len`: fixed ray length in meters when `ray scale=fixed`.
+    - `hit point`: shows the current ray-box intersection point.
+    - `hit object outline`: adds an outline to the object cuboid intersected by
+      the current gaze ray. This is a ray-box hit cue, not confirmed attention.
+    - `auto render`: when enabled, slider/play changes rebuild the 3D figure.
+      Disable it if the notebook UI becomes slow, then use `Render current`.
+- `notebooks/07_multiview_gaze_dashboard.ipynb`
+  - Interactive figure finder for one sequence/window.
+  - Shows local gaze, motion magnitude, image-space gaze, object-hit context,
+    and 3D Scene context in one coordinated figure.
+  - Includes a lightweight prediction-track hook for future model-output CSVs.
+  - Design notes: `docs/multiview_gaze_dashboard_design.md`.
 
 To use the notebooks, first make sure the feature layers exist in:
 

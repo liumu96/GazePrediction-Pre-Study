@@ -37,6 +37,11 @@
   这是后续 gaze-object hit test 和 3D scene viewer 的基础层。
 - `batch_extract_scene_object_boxes.py`: batch-run object box extraction over
   ADT sequences and write `batch_scene_object_boxes_summary.csv`。
+- `compute_gaze_object_hits.py`: compute Scene-frame ray-box first hits from
+  `gaze_samples.csv` and `scene_object_boxes.csv`。默认排除 `shelter`
+  room envelope，用于得到更接近 object-level 的 gaze hit。
+- `batch_compute_gaze_object_hits.py`: batch-run gaze-object hit extraction and
+  write `batch_gaze_object_hits_summary.csv`。
 - `extract_skeleton_samples.py`: extract ADT skeleton joints aligned to existing
   gaze sample timestamps。需要在 `adt` conda 环境里运行；输出 Scene-frame
   root/head joints 和全部 51 个 skeleton joints。
@@ -136,6 +141,31 @@ python scripts/batch_extract_scene_object_boxes.py --output-dir /mnt/d/SparseGaz
 
 - `batch_scene_object_boxes_summary.csv`
 - `batch_scene_object_boxes_report.json`
+
+如果要计算 gaze ray 和 object cuboids 的 first-hit：
+
+```bash
+python scripts/compute_gaze_object_hits.py \
+  Apartment_release_decoration_skeleton_seq131_M1292 \
+  --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured
+```
+
+输出：
+
+- `sequences/<sequence>/scene/gaze_object_hits.csv`
+- `sequences/<sequence>/scene/gaze_object_hits_summary.json`
+
+批量计算：
+
+```bash
+python scripts/batch_compute_gaze_object_hits.py \
+  --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured
+```
+
+批量输出：
+
+- `batch/batch_gaze_object_hits_summary.csv`
+- `batch/batch_gaze_object_hits_report.json`
 
 如果要导出和 gaze timestamps 对齐的 skeleton samples，使用 `adt` conda 环境：
 

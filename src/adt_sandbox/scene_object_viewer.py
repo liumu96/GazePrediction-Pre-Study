@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 
 from .results import discover_sequence_files, find_sequence_file
+from .viz_palette import SEMANTIC_COLORS
 
 
 BOX_EDGES: tuple[tuple[int, int], ...] = (
@@ -28,12 +29,25 @@ BOX_EDGES: tuple[tuple[int, int], ...] = (
     (6, 7),
 )
 
+STATIC_BOX_COLOR = SEMANTIC_COLORS["static_object"]
+DYNAMIC_BOX_COLOR = SEMANTIC_COLORS["dynamic_object"]
+HIT_BOX_COLOR = SEMANTIC_COLORS["hit_object"]
+HIT_POINT_COLOR = SEMANTIC_COLORS["hit"]
+HEAD_TRAJECTORY_COLOR = SEMANTIC_COLORS["head"]
+SKELETON_BONE_COLOR = SEMANTIC_COLORS["skeleton"]
+SKELETON_JOINT_COLOR = SEMANTIC_COLORS["skeleton_joint"]
+GAZE_RAY_COLOR = SEMANTIC_COLORS["gaze_ray"]
+GAZE_POINT_COLOR = SEMANTIC_COLORS["gaze_point"]
+OBJECT_CENTER_COLOR = SEMANTIC_COLORS["object_center"]
+
 
 @dataclass(frozen=True)
 class SceneViewerData:
     sequence_id: str
     frames: pd.DataFrame
     objects: pd.DataFrame
+    hits: pd.DataFrame | None
+    events: pd.DataFrame | None
     skeleton_summary: dict[str, Any] | None
 
 
@@ -91,6 +105,20 @@ def load_scene_viewer_data(
             "scene_object_boxes.csv",
         )
     )
+    hits_path = find_optional_sequence_file(
+        root,
+        sequence_id,
+        "scene",
+        "gaze_object_hits.csv",
+    )
+    hits = pd.read_csv(hits_path) if hits_path is not None else None
+    events_path = find_optional_sequence_file(
+        root,
+        sequence_id,
+        "events",
+        "scene_gaze_frame_labels.csv",
+    )
+    events = pd.read_csv(events_path) if events_path is not None else None
     skeleton_summary = _read_json_if_exists(
         find_optional_sequence_file(
             root,
@@ -119,6 +147,8 @@ def load_scene_viewer_data(
         sequence_id=sequence_id,
         frames=frames,
         objects=objects,
+        hits=hits,
+        events=events,
         skeleton_summary=skeleton_summary,
     )
 
@@ -136,11 +166,14 @@ def build_scene_object_gaze_figure(
     dynamic_object_opacity: float = 0.75,
     max_static_objects: int | None = None,
     category_filter: str = "",
+    exclude_category_filter: str = "shelter",
     show_skeleton: bool = True,
     show_skeleton_trajectory: bool = True,
     show_head_trajectory: bool = True,
     show_gaze_rays: bool = True,
     show_gaze_points: bool = True,
+    show_object_hits: bool = True,
+    show_hit_object: bool = True,
     gaze_ray_length_m: float = 1.0,
     gaze_scale_mode: str = "fixed",
 ) -> Any:
@@ -158,14 +191,18 @@ def build_scene_object_gaze_figure(
     focus_row = data.frames.iloc[focus_index]
     focus_timestamp_ns = int(focus_row["query_timestamp_ns"])
     categories = _parse_category_filter(category_filter)
+    excluded_categories = _parse_category_filter(exclude_category_filter)
     object_rows = select_object_rows(
         data.objects,
         focus_timestamp_ns=focus_timestamp_ns,
         show_static=show_static_objects,
         show_dynamic=show_dynamic_objects,
         categories=categories,
+        excluded_categories=excluded_categories,
         max_static_objects=max_static_objects,
     )
+    focus_hit = _focus_hit_row(data.hits, focus_timestamp_ns)
+    hit_object_rows = _hit_object_rows(data.objects, focus_hit)
 
     fig = go.Figure()
     plotted_points: list[np.ndarray] = []
@@ -177,7 +214,7 @@ def build_scene_object_gaze_figure(
             _box_lines_trace(
                 static_objects,
                 name="static object boxes",
-                color="rgba(90,90,90,0.55)",
+                color=STATIC_BOX_COLOR,
                 opacity=object_opacity,
             )
         )
@@ -187,7 +224,7 @@ def build_scene_object_gaze_figure(
             _box_lines_trace(
                 dynamic_objects,
                 name="dynamic object boxes",
-                color="rgba(255,140,0,0.95)",
+                color=DYNAMIC_BOX_COLOR,
                 opacity=dynamic_object_opacity,
             )
         )
@@ -199,6 +236,17 @@ def build_scene_object_gaze_figure(
                 dtype=np.float64
             )
         )
+    if show_hit_object and not hit_object_rows.empty:
+        fig.add_trace(
+            _box_lines_trace(
+                hit_object_rows,
+                name="current ray-box hit outline",
+                color=HIT_BOX_COLOR,
+                opacity=0.92,
+                width=5,
+            )
+        )
+        plotted_points.append(_object_corner_points(hit_object_rows))
 
     if show_head_trajectory:
         head_points = _finite_xyz(
@@ -213,8 +261,8 @@ def build_scene_object_gaze_figure(
                     z=head_points[:, 2],
                     mode="lines+markers",
                     name="head/device trajectory",
-                    line=dict(color="black", width=5),
-                    marker=dict(size=3, color="black"),
+                    line=dict(color=HEAD_TRAJECTORY_COLOR, width=5),
+                    marker=dict(size=3, color=HEAD_TRAJECTORY_COLOR),
                 )
             )
             plotted_points.append(head_points)
@@ -246,7 +294,7 @@ def build_scene_object_gaze_figure(
                     z=root_points[:, 2],
                     mode="lines",
                     name="skeleton root trajectory",
-                    line=dict(color="seagreen", width=4),
+                    line=dict(color=SKELETON_BONE_COLOR, width=4),
                 )
             )
             plotted_points.append(root_points)
@@ -278,11 +326,17 @@ def build_scene_object_gaze_figure(
                     z=gaze_points[:, 2],
                     mode="lines+markers",
                     name="depth-defined gaze points",
-                    line=dict(color="crimson", width=3),
-                    marker=dict(size=3, color="crimson"),
+                    line=dict(color=GAZE_POINT_COLOR, width=3),
+                    marker=dict(size=3, color=GAZE_POINT_COLOR),
                 )
             )
             plotted_points.append(gaze_points)
+
+    if show_object_hits and focus_hit is not None:
+        hit_trace, hit_points = _hit_trace(focus_hit)
+        if hit_trace is not None:
+            fig.add_trace(hit_trace)
+            plotted_points.append(hit_points)
 
     _style_scene_figure(
         fig,
@@ -319,21 +373,20 @@ def select_object_rows(
     show_static: bool,
     show_dynamic: bool,
     categories: set[str] | None = None,
+    excluded_categories: set[str] | None = None,
     max_static_objects: int | None = None,
 ) -> pd.DataFrame:
     selected: list[pd.DataFrame] = []
     if show_static:
         static_rows = object_frame[object_frame["timestamp_ns"] == -1]
-        if categories:
-            static_rows = static_rows[static_rows["category"].isin(categories)]
+        static_rows = _filter_object_categories(static_rows, categories, excluded_categories)
         if max_static_objects is not None and max_static_objects > 0:
             static_rows = static_rows.head(max_static_objects)
         selected.append(static_rows)
 
     if show_dynamic:
         dynamic_rows = object_frame[object_frame["timestamp_ns"] != -1]
-        if categories:
-            dynamic_rows = dynamic_rows[dynamic_rows["category"].isin(categories)]
+        dynamic_rows = _filter_object_categories(dynamic_rows, categories, excluded_categories)
         if not dynamic_rows.empty:
             timestamps = np.asarray(sorted(dynamic_rows["timestamp_ns"].unique()), dtype=np.int64)
             nearest_timestamp = int(
@@ -346,11 +399,27 @@ def select_object_rows(
     return pd.concat(selected, ignore_index=True)
 
 
+def _filter_object_categories(
+    rows: pd.DataFrame,
+    categories: set[str] | None,
+    excluded_categories: set[str] | None,
+) -> pd.DataFrame:
+    if rows.empty:
+        return rows
+    filtered = rows
+    if categories:
+        filtered = filtered[filtered["category"].isin(categories)]
+    if excluded_categories:
+        filtered = filtered[~filtered["category"].isin(excluded_categories)]
+    return filtered
+
+
 def _box_lines_trace(
     object_rows: pd.DataFrame,
     name: str,
     color: str,
     opacity: float,
+    width: int = 2,
 ) -> Any:
     import plotly.graph_objects as go
 
@@ -369,7 +438,7 @@ def _box_lines_trace(
         z=zs,
         mode="lines",
         name=name,
-        line=dict(color=color, width=2),
+        line=dict(color=color, width=width),
         opacity=opacity,
         hoverinfo="skip",
     )
@@ -388,7 +457,7 @@ def _object_center_trace(object_rows: pd.DataFrame) -> Any:
         z=object_rows["scene_t_z_m"],
         mode="markers",
         name="object centers",
-        marker=dict(size=2.5, color="orange"),
+        marker=dict(size=2.5, color=OBJECT_CENTER_COLOR),
         text=hover,
         hoverinfo="text",
     )
@@ -438,7 +507,7 @@ def _skeleton_traces(data: SceneViewerData, row: pd.Series) -> tuple[list[Any], 
             z=zs,
             mode="lines",
             name="skeleton bones",
-            line=dict(color="seagreen", width=5),
+            line=dict(color=SKELETON_BONE_COLOR, width=5),
             hoverinfo="skip",
         ),
         go.Scatter3d(
@@ -447,7 +516,7 @@ def _skeleton_traces(data: SceneViewerData, row: pd.Series) -> tuple[list[Any], 
             z=point_array[finite, 2],
             mode="markers",
             name="skeleton joints",
-            marker=dict(size=3.5, color="darkgreen"),
+            marker=dict(size=3.5, color=SKELETON_JOINT_COLOR),
             text=[joint_labels[index] for index in np.where(finite)[0]],
             hoverinfo="text",
         ),
@@ -510,12 +579,106 @@ def _gaze_ray_trace(
             z=zs,
             mode="lines",
             name="gaze rays",
-            line=dict(color="crimson", width=4),
+            line=dict(color=GAZE_RAY_COLOR, width=4),
             opacity=0.65,
             hoverinfo="skip",
         ),
         np.vstack(points),
     )
+
+
+def _focus_hit_row(hits: pd.DataFrame | None, focus_timestamp_ns: int) -> pd.Series | None:
+    if hits is None or hits.empty or "query_timestamp_ns" not in hits.columns:
+        return None
+    timestamps = hits["query_timestamp_ns"].to_numpy(dtype=np.int64)
+    index = int(np.argmin(np.abs(timestamps - int(focus_timestamp_ns))))
+    return hits.iloc[index]
+
+
+def _hit_object_rows(objects: pd.DataFrame, hit_row: pd.Series | None) -> pd.DataFrame:
+    if hit_row is None or not _row_bool(hit_row, "object_hit"):
+        return objects.iloc[0:0].copy()
+    object_uid = _normalize_uid(hit_row.get("hit_object_uid"))
+    if object_uid is None:
+        return objects.iloc[0:0].copy()
+    object_rows = objects[objects["object_uid"].map(_normalize_uid) == object_uid]
+    if object_rows.empty:
+        return object_rows
+    hit_object_timestamp = hit_row.get("hit_object_timestamp_ns")
+    if pd.isna(hit_object_timestamp):
+        return object_rows.iloc[0:0].copy()
+    timestamp = int(hit_object_timestamp)
+    if timestamp == -1:
+        return object_rows[object_rows["timestamp_ns"] == -1]
+    dynamic_rows = object_rows[object_rows["timestamp_ns"] != -1]
+    if dynamic_rows.empty:
+        return dynamic_rows
+    timestamps = dynamic_rows["timestamp_ns"].to_numpy(dtype=np.int64)
+    nearest = int(timestamps[np.argmin(np.abs(timestamps - timestamp))])
+    return dynamic_rows[dynamic_rows["timestamp_ns"] == nearest]
+
+
+def _hit_trace(hit_row: pd.Series) -> tuple[Any | None, np.ndarray]:
+    import plotly.graph_objects as go
+
+    if not _row_bool(hit_row, "object_hit"):
+        return None, np.zeros((0, 3), dtype=np.float64)
+    point = np.asarray(
+        [
+            _row_float(hit_row, "hit_x_m"),
+            _row_float(hit_row, "hit_y_m"),
+            _row_float(hit_row, "hit_z_m"),
+        ],
+        dtype=np.float64,
+    )
+    if not np.isfinite(point).all():
+        return None, np.zeros((0, 3), dtype=np.float64)
+    hover = (
+        f"{hit_row.get('hit_instance_name', '')}<br>"
+        f"{hit_row.get('hit_category', '')}<br>"
+        f"distance={_row_float(hit_row, 'hit_distance_m'):.3f} m"
+    )
+    trace = go.Scatter3d(
+        x=[point[0]],
+        y=[point[1]],
+        z=[point[2]],
+        mode="markers",
+        name="current ray-box hit point",
+        marker=dict(size=8, color=HIT_POINT_COLOR, symbol="diamond"),
+        text=[hover],
+        hoverinfo="text",
+    )
+    return trace, point.reshape(1, 3)
+
+
+def _row_bool(row: pd.Series, column: str) -> bool:
+    value = row.get(column)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.lower() == "true"
+    return bool(value)
+
+
+def _row_float(row: pd.Series, column: str) -> float:
+    value = row.get(column)
+    return float(value) if value is not None and not pd.isna(value) else float("nan")
+
+
+def _normalize_uid(value: Any) -> str | None:
+    if value is None or pd.isna(value):
+        return None
+    if isinstance(value, (float, np.floating)):
+        if np.isfinite(value) and float(value).is_integer():
+            return str(int(value))
+    if isinstance(value, (int, np.integer)):
+        return str(int(value))
+    text = str(value)
+    if text.endswith(".0"):
+        candidate = text[:-2]
+        if candidate.isdigit():
+            return candidate
+    return text
 
 
 def _style_scene_figure(
@@ -553,12 +716,17 @@ def _axis_ranges(points_list: Sequence[np.ndarray]) -> list[list[float]]:
     points = np.vstack(finite_points)
     mins = np.min(points, axis=0)
     maxs = np.max(points, axis=0)
-    center = (mins + maxs) / 2.0
-    span = np.max(maxs - mins)
-    if span <= 1e-6:
-        span = 1.0
-    half = span * 0.55
-    return [[float(center[axis] - half), float(center[axis] + half)] for axis in range(3)]
+    spans = maxs - mins
+    ranges: list[list[float]] = []
+    for axis in range(3):
+        span = float(spans[axis])
+        if span <= 1e-6:
+            center = float((mins[axis] + maxs[axis]) / 2.0)
+            ranges.append([center - 0.5, center + 0.5])
+            continue
+        pad = max(span * 0.08, 0.15)
+        ranges.append([float(mins[axis] - pad), float(maxs[axis] + pad)])
+    return ranges
 
 
 def _row_corners(row: pd.Series) -> np.ndarray:
