@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from .results import discover_sequence_files, find_sequence_file
+from adt_sandbox.results import discover_sequence_files, find_sequence_file
 
 
 def discover_sequence_ids(reports_dir: str | Path) -> list[str]:

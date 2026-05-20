@@ -209,7 +209,7 @@ python scripts/detect_scene_gaze_events.py --reports-dir /mnt/d/SparseGaze/ADT-G
 如果要检查某个 sequence 的某段 event label：
 
 ```bash
-python scripts/visualize_scene_gaze_events.py \
+python visualization/visualize_scene_gaze_events.py \
   Apartment_release_decoration_skeleton_seq131_M1292 \
   --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured \
   --start-frame 0 \
@@ -223,11 +223,11 @@ python scripts/visualize_scene_gaze_events.py \
 
 如果已经用 `extract_gaze_samples.py` 生成过 CSV，后面想围绕一个 event/window
 生成 scanpath、scene rays、overlay frames 和 overlay video，使用
-`scripts/visualize_gaze_outputs.py`。它会先读取已有 CSV，再只为当前窗口打开
+`visualization/visualize_gaze_outputs.py`。它会先读取已有 CSV，再只为当前窗口打开
 ADT provider 查询所需的 RGB image。
 
 ```bash
-python scripts/visualize_gaze_outputs.py \
+python visualization/visualize_gaze_outputs.py \
   Apartment_release_decoration_skeleton_seq131_M1292 \
   --start-row 0 \
   --end-row 60 \
@@ -267,7 +267,7 @@ gt_provider.raw_data_provider_ptr()
 4. 计算 gaze validity、projection、Scene-frame ray。
 
 5. 写出 CSV 和轻量 `gaze_summary.json`。
-6. 需要图片或视频时，再用 `scripts/visualize_gaze_outputs.py` 读取 CSV，
+6. 需要图片或视频时，再用 `visualization/visualize_gaze_outputs.py` 读取 CSV，
    只对当前选中窗口生成 scene_rays、scanpath、overlay frames 和 overlay video。
 
 ## Gaze Fields / Gaze 字段

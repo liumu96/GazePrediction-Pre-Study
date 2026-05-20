@@ -12,7 +12,7 @@ zh-CN:
   `dt` 等质量指标。
 
 图片和视频不再是默认主流程的一部分；如果后面需要 scanpath、scene rays、
-overlay frames 或 overlay video，改用 `scripts/visualize_gaze_outputs.py`
+overlay frames 或 overlay video，改用 `visualization/visualize_gaze_outputs.py`
 基于已有 CSV 和选中窗口生成。
 
 Example:

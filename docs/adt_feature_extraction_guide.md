@@ -508,7 +508,7 @@ viewer_projects_adt --sequence_path /mnt/d/Pose2Gaze-ADT/<sequence_id>
 - `src/adt_sandbox/providers.py`
 - `src/adt_sandbox/gaze.py`
 - `scripts/extract_gaze_samples.py`
-- `scripts/visualize_gaze_outputs.py`
+- `visualization/visualize_gaze_outputs.py`
 - `docs/tutorial_gaze_feature_extraction.md`
 
 下一步文件：

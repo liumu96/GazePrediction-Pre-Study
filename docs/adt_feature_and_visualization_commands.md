@@ -35,6 +35,22 @@ is no longer required by this repository after the copy is verified.
 ADT raw data is resolved from `ADT_DATA_ROOT` in `.env` or the shell
 environment.
 
+## Code Organization
+
+The repository keeps feature extraction and visualization separate:
+
+- `visualization/visualize_*.py` are visualization CLI entry points. They parse
+  arguments, resolve input/output paths, and call reusable plotting functions.
+- `visualization/` also contains the actual plotting and rendering logic used by
+  notebooks and CLI entry points.
+- `scripts/` contains feature extraction, analysis, reporting, and dataset
+  utility commands that are not primarily visualization commands.
+- `src/adt_sandbox/` contains feature extraction, dataset access, coordinate
+  transforms, event detection, and other non-visualization logic.
+
+This means `visualize_gaze_outputs.py` and `visualize_scene_gaze_events.py`
+live under the root-level `visualization/` directory, not under `scripts/`.
+
 ## Result Directory Layout
 
 The organized layout groups files by sequence first:
@@ -437,7 +453,7 @@ This opens ADT provider for a selected window and generates overlay/scanpath
 figures and video.
 
 ```bash
-python scripts/visualize_gaze_outputs.py \
+python visualization/visualize_gaze_outputs.py \
   Apartment_release_decoration_skeleton_seq131_M1292 \
   --reports-dir "$REPORTS_DIR" \
   --start-row 0 \
@@ -460,7 +476,7 @@ Use this for:
 This does not reopen ADT provider. It only reads event CSVs.
 
 ```bash
-python scripts/visualize_scene_gaze_events.py \
+python visualization/visualize_scene_gaze_events.py \
   Apartment_release_decoration_skeleton_seq131_M1292 \
   --reports-dir "$REPORTS_DIR" \
   --start-frame 0 \
@@ -528,6 +544,26 @@ Current notebooks:
     and 3D Scene context in one coordinated figure.
   - Includes a lightweight prediction-track hook for future model-output CSVs.
   - Design notes: `docs/multiview_gaze_dashboard_design.md`.
+- `notebooks/08_prediction_gaze_evaluation_viewer.ipynb`
+  - Prediction-result evaluation viewer for SparseGaze-style eval outputs.
+  - Reads aggregate `*_missing_phase*.csv` tables and, when available,
+    per-sequence `sequence_predictions/*.npz` files.
+  - Focuses on mean/median error, whole-sequence error distribution,
+    yaw/pitch residuals, anchor vs missing-frame error, scene-event error, and
+    selected-window GT/predicted yaw-pitch traces and scanpaths.
+  - Edit `EVAL_ROOTS` in the first configuration cell to compare different
+    model directories under `/home/liumu/Github_Projects/SparseGaze/outputs/eval`.
+- `notebooks/09_npz_gaze_visualization_viewer.ipynb`
+  - CSV-style gaze visualization for one per-sequence prediction `.npz` file.
+  - Reads `pred_xyz` or `gt_xyz` from SparseGaze eval outputs and reuses the
+    extracted ADT `gaze_samples.csv` for timestamps, origins, RGB projection
+    context, and optional GT depth.
+  - Produces the same output family as the CSV gaze visualizer: Scene rays,
+    reference-frame scanpath overlays, overlay frames, and overlay video.
+  - Important assumption: current SparseGaze `.npz` files store Scene-frame
+    unit gaze directions. They do not store depth-defined gaze points, so the
+    notebook either uses GT gaze depth for endpoint visualization or a fixed
+    ray length for direction-only comparison.
 
 To use the notebooks, first make sure the feature layers exist in:
 
@@ -564,7 +600,7 @@ conda run -n adt python scripts/batch_extract_skeleton_samples.py --reports-dir 
 Then inspect:
 
 ```bash
-python scripts/visualize_scene_gaze_events.py \
+python visualization/visualize_scene_gaze_events.py \
   Apartment_release_decoration_skeleton_seq131_M1292 \
   --reports-dir "$REPORTS_DIR" \
   --start-frame 0 \
@@ -584,7 +620,7 @@ Static checks for the newly added scene/object viewer layer:
 ```bash
 python -m py_compile \
   src/adt_sandbox/scene_features.py \
-  src/adt_sandbox/scene_object_viewer.py \
+  visualization/scene_object_viewer.py \
   scripts/inspect_scene_assets.py \
   scripts/extract_scene_object_boxes.py \
   scripts/batch_extract_scene_object_boxes.py

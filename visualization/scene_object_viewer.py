@@ -10,7 +10,7 @@ from typing import Any, Iterable, Sequence
 import numpy as np
 import pandas as pd
 
-from .results import discover_sequence_files, find_sequence_file
+from adt_sandbox.results import discover_sequence_files, find_sequence_file
 from .viz_palette import SEMANTIC_COLORS
 
 

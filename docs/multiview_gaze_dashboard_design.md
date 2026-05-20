@@ -89,7 +89,7 @@ arbitrary saturated colors.
 
 The implementation lives in:
 
-- `src/adt_sandbox/viz_palette.py`
+- `visualization/viz_palette.py`
 
 Viewer modules should import from this file rather than defining their own
 colors. This prevents the same object, event, or gaze signal from changing
@@ -111,7 +111,7 @@ colors across notebooks.
 The palette should be kept consistent with future SparseGaze paper figures. If
 the main paper adopts a different global palette, change the constants in:
 
-- `src/adt_sandbox/viz_palette.py`
+- `visualization/viz_palette.py`
 
 ## Interaction and Paper Export
 

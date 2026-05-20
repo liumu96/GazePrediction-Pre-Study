@@ -55,9 +55,9 @@
   existing `gaze_samples.csv`。这一层用 Scene-frame gaze direction 的 angular
   velocity / dispersion 生成 `fixation` / `transition` / `invalid` labels，
   和 CPF-local dynamics 分开保存。
-- `visualize_scene_gaze_events.py`: visualize one scene event window from
-  existing scene event CSV files。用于检查最终 label、Scene angular velocity
-  和 Scene dispersion 的时间关系，不重新打开 ADT provider。
+- `../visualization/visualize_scene_gaze_events.py`: visualize one scene event
+  window from existing scene event CSV files。用于检查最终 label、Scene angular
+  velocity 和 Scene dispersion 的时间关系，不重新打开 ADT provider。
 - `analyze_head_gaze_relationship.py`: build a per-frame joined head-gaze table
   plus sequence-level and batch-level statistics from existing gaze/head CSV
   exports。用于系统回答：
@@ -78,9 +78,10 @@
   history 是否解释 missing-gaze residual。
 - `report_sparsegaze_head_utility.py`: generate the SparseGaze head utility
   markdown report and figures from the batch utility CSVs。
-- `visualize_gaze_outputs.py`: regenerate visualizations from an existing gaze
-  CSV and a selected row window。它会读取已有 CSV，再只为当前窗口打开 ADT
-  provider 生成 scanpath、scene_rays、overlay frames 和 overlay video。
+- `../visualization/visualize_gaze_outputs.py`: regenerate visualizations from
+  an existing gaze CSV and a selected row window。它会读取已有 CSV，再只为当前
+  窗口打开 ADT provider 生成 scanpath、scene_rays、overlay frames 和 overlay
+  video。
 
 示例：
 
@@ -233,7 +234,7 @@ python scripts/detect_scene_gaze_events.py --reports-dir /mnt/d/SparseGaze/ADT-G
 如果要看某个 sequence / frame window 的 event timeline：
 
 ```bash
-python scripts/visualize_scene_gaze_events.py \
+python visualization/visualize_scene_gaze_events.py \
   Apartment_release_decoration_skeleton_seq131_M1292 \
   --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured \
   --start-frame 0 \
@@ -289,7 +290,7 @@ python scripts/report_sparsegaze_head_utility.py --reports-dir /mnt/d/SparseGaze
 如果已经有 CSV，只想重新调可视化参数：
 
 ```bash
-python scripts/visualize_gaze_outputs.py <sequence_id> \
+python visualization/visualize_gaze_outputs.py <sequence_id> \
   --start-row 0 --end-row 60 \
   --stride 10 \
   --run-name stride_10

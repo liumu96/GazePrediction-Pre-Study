@@ -1,25 +1,7 @@
-#!/usr/bin/env python
-"""Visualize scene-direction gaze event labels for one sequence window.
-
-Run `detect_scene_gaze_events.py` first. This script reads the generated
-`*_scene_gaze_event_*.csv` files and writes a timeline figure with:
-
-- final scene event labels (`fixation` / `transition` / `invalid`)
-- Scene-frame angular velocity
-- Scene-frame centered angular dispersion
-
-Example:
-    python scripts/visualize_scene_gaze_events.py \
-      Apartment_release_decoration_skeleton_seq131_M1292 \
-      --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured \
-      --start-frame 0 \
-      --end-frame 600
-"""
+"""Visualization helpers for scene-direction gaze event labels."""
 
 from __future__ import annotations
 
-import argparse
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -27,19 +9,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Patch
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT / "src"))
-
-from adt_sandbox.scene_gaze_events import (  # noqa: E402
+from adt_sandbox.scene_gaze_events import (
     SceneGazeEventFeatureRow,
     SceneGazeEventSegment,
     SceneGazeFrameLabel,
-    read_scene_gaze_event_features_csv,
-    read_scene_gaze_event_segments_csv,
-    read_scene_gaze_frame_labels_csv,
 )
-from adt_sandbox.results import find_sequence_file  # noqa: E402
-
 
 LABEL_COLORS = {
     "fixation": "#2ca25f",
@@ -50,166 +24,11 @@ LABEL_COLORS = {
 
 @dataclass(frozen=True)
 class LabelRun:
+    """Contiguous frame interval with the same event label."""
+
     label: str
     start_frame: int
     end_frame: int
-
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("sequence", help="Sequence name used in scene event output filenames.")
-    parser.add_argument(
-        "--reports-dir",
-        type=Path,
-        default=REPO_ROOT / "outputs" / "reports",
-        help="Directory containing scene event CSV files.",
-    )
-    parser.add_argument(
-        "--features-csv",
-        type=Path,
-        default=None,
-        help="Optional explicit *_scene_gaze_event_features.csv path.",
-    )
-    parser.add_argument(
-        "--labels-csv",
-        type=Path,
-        default=None,
-        help="Optional explicit *_scene_gaze_frame_labels.csv path.",
-    )
-    parser.add_argument(
-        "--segments-csv",
-        type=Path,
-        default=None,
-        help="Optional explicit *_scene_gaze_event_segments.csv path.",
-    )
-    parser.add_argument(
-        "--output-dir",
-        type=Path,
-        default=REPO_ROOT / "outputs" / "figures" / "scene_gaze_events",
-        help="Directory for the generated timeline figure.",
-    )
-    parser.add_argument(
-        "--start-frame",
-        type=int,
-        default=0,
-        help="Inclusive starting frame index.",
-    )
-    parser.add_argument(
-        "--end-frame",
-        type=int,
-        default=None,
-        help="Exclusive ending frame index. Default uses --max-frames from start.",
-    )
-    parser.add_argument(
-        "--max-frames",
-        type=int,
-        default=600,
-        help="Window length when --end-frame is omitted. Use 0 to plot to sequence end.",
-    )
-    parser.add_argument(
-        "--velocity-threshold-deg-s",
-        type=float,
-        default=40.0,
-        help="Draw the velocity threshold used for fixation labeling.",
-    )
-    parser.add_argument(
-        "--dispersion-threshold-deg",
-        type=float,
-        default=2.5,
-        help="Draw the dispersion threshold used for fixation labeling.",
-    )
-    parser.add_argument(
-        "--velocity-ymax",
-        type=float,
-        default=None,
-        help="Optional y-axis max for velocity.",
-    )
-    parser.add_argument(
-        "--dispersion-ymax",
-        type=float,
-        default=None,
-        help="Optional y-axis max for dispersion.",
-    )
-    return parser.parse_args()
-
-
-def main() -> None:
-    args = parse_args()
-    sequence = Path(args.sequence).name
-    feature_csv = args.features_csv or resolve_scene_event_file(
-        args.reports_dir,
-        sequence,
-        "scene_gaze_event_features.csv",
-    )
-    label_csv = args.labels_csv or resolve_scene_event_file(
-        args.reports_dir,
-        sequence,
-        "scene_gaze_frame_labels.csv",
-    )
-    segment_csv = args.segments_csv or resolve_scene_event_file(
-        args.reports_dir,
-        sequence,
-        "scene_gaze_event_segments.csv",
-    )
-
-    require_file(feature_csv, "scene event features")
-    require_file(label_csv, "scene event frame labels")
-    require_file(segment_csv, "scene event segments")
-
-    features = read_scene_gaze_event_features_csv(feature_csv)
-    labels = read_scene_gaze_frame_labels_csv(label_csv)
-    segments = read_scene_gaze_event_segments_csv(segment_csv)
-    start_frame, end_frame = resolve_frame_window(
-        features,
-        start_frame=args.start_frame,
-        end_frame=args.end_frame,
-        max_frames=args.max_frames,
-    )
-    selected_features = select_feature_window(features, start_frame, end_frame)
-    if not selected_features:
-        raise ValueError(
-            f"No scene event feature rows selected for frames "
-            f"{start_frame}..{end_frame}"
-        )
-
-    output_path = args.output_dir / (
-        f"{sequence}_scene_gaze_events_{start_frame}_{end_frame}.png"
-    )
-    plot_scene_gaze_event_timeline(
-        output_path,
-        sequence_name=sequence,
-        features=selected_features,
-        labels=labels,
-        segments=segments,
-        start_frame=start_frame,
-        end_frame=end_frame,
-        velocity_threshold_deg_s=args.velocity_threshold_deg_s,
-        dispersion_threshold_deg=args.dispersion_threshold_deg,
-        velocity_ymax=args.velocity_ymax,
-        dispersion_ymax=args.dispersion_ymax,
-    )
-
-    print(f"sequence: {sequence}")
-    print(f"features_csv: {feature_csv}")
-    print(f"labels_csv: {label_csv}")
-    print(f"segments_csv: {segment_csv}")
-    print(f"frames: {start_frame}..{end_frame}")
-    print(f"figure: {output_path}")
-
-
-def resolve_scene_event_file(
-    reports_dir: Path,
-    sequence: str,
-    filename: str,
-) -> Path:
-    return find_sequence_file(reports_dir, sequence, "events", filename)
-
-
-def require_file(path: Path, description: str) -> None:
-    if not path.exists():
-        raise FileNotFoundError(
-            f"Missing {description}: {path}. Run scripts/detect_scene_gaze_events.py first."
-        )
 
 
 def resolve_frame_window(
@@ -218,6 +37,8 @@ def resolve_frame_window(
     end_frame: int | None,
     max_frames: int,
 ) -> tuple[int, int]:
+    """Resolve an inclusive/exclusive frame window against available rows."""
+
     if start_frame < 0:
         raise ValueError("start-frame must be non-negative")
     if not features:
@@ -238,6 +59,8 @@ def select_feature_window(
     start_frame: int,
     end_frame: int,
 ) -> list[SceneGazeEventFeatureRow]:
+    """Return feature rows whose frame indices fall inside the selected window."""
+
     return [
         row
         for row in sorted(features, key=lambda item: item.frame_index)
@@ -258,6 +81,8 @@ def plot_scene_gaze_event_timeline(
     velocity_ymax: float | None,
     dispersion_ymax: float | None,
 ) -> None:
+    """Write a three-track timeline for labels, velocity, and dispersion."""
+
     frames = np.asarray([row.frame_index for row in features], dtype=np.int64)
     velocities = optional_float_array([row.scene_velocity_deg_s for row in features])
     dispersions = optional_float_array(
@@ -327,6 +152,8 @@ def event_spans_for_window(
     start_frame: int,
     end_frame: int,
 ) -> list[LabelRun]:
+    """Prefer segment rows, then fall back to reconstructing runs from labels."""
+
     overlapping_segments = [
         LabelRun(
             label=segment.scene_event_label,
@@ -368,6 +195,8 @@ def event_spans_for_window(
 
 
 def paint_label_spans(axes: np.ndarray, runs: list[LabelRun]) -> None:
+    """Draw event intervals behind all timeline axes."""
+
     for run in runs:
         color = LABEL_COLORS.get(run.label, "#bdbdbd")
         axes[0].axvspan(run.start_frame, run.end_frame, color=color, alpha=0.85)
@@ -380,6 +209,8 @@ def draw_event_track(
     frames: np.ndarray,
     label_by_frame: dict[int, str],
 ) -> None:
+    """Draw labels as a compact categorical step track."""
+
     label_values = {"invalid": -1.0, "transition": 0.0, "fixation": 1.0}
     values = np.asarray(
         [label_values.get(label_by_frame.get(int(frame), "invalid"), -1.0) for frame in frames],
@@ -402,6 +233,8 @@ def draw_metric_axis(
     threshold: float,
     ymax: float | None,
 ) -> None:
+    """Draw one continuous event diagnostic curve with its threshold."""
+
     axis.plot(frames, values, color=color, linewidth=1.1)
     axis.axhline(
         threshold,
@@ -418,11 +251,9 @@ def draw_metric_axis(
 
 
 def optional_float_array(values: list[float | None]) -> np.ndarray:
+    """Convert optional numeric fields into a plottable float array."""
+
     return np.asarray(
         [np.nan if value is None else float(value) for value in values],
         dtype=np.float64,
     )
-
-
-if __name__ == "__main__":
-    main()

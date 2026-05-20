@@ -103,7 +103,7 @@ and segment_duration_ms >= 133
 窗口级可视化：
 
 ```bash
-python scripts/visualize_scene_gaze_events.py \
+python visualization/visualize_scene_gaze_events.py \
   Apartment_release_decoration_skeleton_seq131_M1292 \
   --reports-dir /mnt/d/SparseGaze/ADT-Gaze-structured \
   --start-frame 0 \

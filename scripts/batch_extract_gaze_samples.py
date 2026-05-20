@@ -71,47 +71,47 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=1,
         help="Step between RGB frame timestamps. Default is 1.",
-    )
+    ) # stride表示在RGB帧时间戳之间的步长。默认值为1，表示使用每个RGB帧的时间戳。如果设置为2，则表示使用每隔一个RGB帧的时间戳，以此类推。
     parser.add_argument(
         "--start-index",
         type=int,
         default=0,
         help="Starting RGB timestamp index before applying stride.",
-    )
+    ) # start-index表示在应用步长之前的起始RGB时间戳索引。默认值为0，表示从第一个RGB帧的时间戳开始。如果设置为10，则表示从第10个RGB帧的时间戳开始，以此类推。
     parser.add_argument(
         "--end-index",
         type=int,
         default=None,
         help="Exclusive ending RGB timestamp index before applying stride.",
-    )
+    ) # end-index表示在应用步长之前的结束RGB时间戳索引（不包括）。默认值为None，表示一直处理到最后一个RGB帧的时间戳。如果设置为100，则表示处理到第100个RGB帧的时间戳（不包括第100个）。
     parser.add_argument(
         "--start-offset-s",
         type=float,
         default=None,
         help="Start time in seconds relative to the first annotation-filtered RGB timestamp.",
-    )
+    ) # start-offset-s表示相对于第一个经过注释过滤的RGB时间戳的起始时间（以秒为单位）。默认值为None，表示从第一个注释过滤的RGB时间戳开始。如果设置为5.0，则表示从第一个注释过滤的RGB时间戳加上5秒的位置开始。
     parser.add_argument(
         "--end-offset-s",
         type=float,
         default=None,
         help="Exclusive end time in seconds relative to the first annotation-filtered RGB timestamp.",
-    )
+    ) # end-offset-s表示相对于第一个经过注释过滤的RGB时间戳的结束时间（以秒为单位）。默认值为None，表示一直处理到最后一个注释过滤的RGB时间戳。如果设置为60.0，则表示处理到第一个注释过滤的RGB时间戳加上60秒的位置（不包括该位置）。
     parser.add_argument(
         "--stream-id",
         default=RGB_STREAM_ID,
         help="Project Aria RGB stream id. Default is 214-1.",
-    )
+    ) # stream-id表示Project Aria RGB流的ID。默认值为214-1，表示使用Project Aria RGB流的默认ID。如果设置为其他值，则表示使用指定ID的RGB流。
     parser.add_argument(
         "--max-dt-ms",
         type=float,
         default=20.0,
         help="Flag gaze samples whose nearest timestamp differs by more than this value.",
-    )
+    ) # max-dt-ms表示标记那些最近的时间戳相差超过这个值的gaze样本。默认值为20.0，表示如果gaze样本的最近时间戳与RGB时间戳之间的差异超过20毫秒，则标记该样本为无效。如果设置为10.0，则表示如果差异超过10毫秒，则标记为无效。
     parser.add_argument(
         "--raw-image-orientation",
         action="store_true",
         help="Keep RGB-related projections in raw sensor orientation instead of upright.",
-    )
+    ) # raw-image-orientation表示是否保持RGB相关投影在原始传感器方向而不是直立方向。默认值为False，表示将投影调整为直立方向。如果设置为True，则保持原始传感器方向。
     return parser.parse_args()
 
 

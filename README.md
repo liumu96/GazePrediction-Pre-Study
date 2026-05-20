@@ -1,46 +1,68 @@
 # ADT Dataset Sandbox
 
 This repository is a focused workspace for exploring the Aria Digital Twin
-(ADT) dataset from WSL. Large data stays on the Windows D drive, this repo
-keeps only lightweight code, notes, manifests, notebooks, and generated reports.
+(ADT) dataset and preparing ADT-derived features, diagnostics, and
+visualizations for SparseGaze-style gaze prediction research.
 
-## Layout
+Large ADT data and generated feature tables stay outside the repository,
+currently on the Windows D drive. This repo keeps only lightweight code,
+notebooks, documentation, manifests, and small reports.
+
+## Current Status
+
+The repository has moved from basic dataset inspection to a structured
+feature-and-visualization pipeline. The current pipeline can extract and inspect:
+
+- gaze samples in CPF, RGB image, and Scene frames;
+- device/CPF head proxy features aligned to gaze timestamps;
+- CPF-local gaze dynamics features;
+- Scene-direction fixation/transition event labels;
+- Scene object cuboids;
+- Scene ray-box gaze-object hit features;
+- ADT skeleton joints aligned to gaze timestamps;
+- head-gaze relationship diagnostics;
+- interactive 3D and multi-view notebooks for sequence/window inspection.
+
+The current standard output root is:
+
+```bash
+REPORTS_DIR=/mnt/d/SparseGaze/ADT-Gaze-structured
+```
+
+The old flat output directory `/mnt/d/SparseGaze/ADT-Gaze` is no longer the
+expected layout for current code.
+
+## Repository Layout
 
 ```text
 .
 ├── configs/          # local path templates and environment examples
-├── docs/             # notes about ADT formats and workflows
+├── analysis/         # reusable model-vs-GT prediction analysis code
+├── docs/             # pipeline notes, analysis plans, reports, command guide
 ├── external/         # optional local source checkouts, ignored
 ├── manifests/        # lightweight sequence lists or dataset notes
-├── notebooks/        # exploratory notebooks
+├── notebooks/        # interactive inspection notebooks
 ├── outputs/
 │   ├── figures/      # generated plots, ignored by git
-│   └── reports/      # generated summaries, ignored by git
-├── scripts/          # command-line helpers
-└── src/adt_sandbox/  # reusable Python utilities for this sandbox
+│   └── reports/      # small local reports, ignored by git
+├── scripts/          # command-line feature extraction / analysis helpers
+├── src/adt_sandbox/  # reusable Python utilities
+└── visualization/    # reusable visualization modules and CLI viewers
 ```
 
 `external/` is optional. It can hold a local `projectaria_tools` source checkout
-for reading official examples or source code, but the default workflow uses the
+for reading official examples or source code, but the normal workflow uses the
 installed `projectaria-tools` Python package.
 
-## Setup
+## Environment
 
-Use a dedicated environment for this sandbox. Do not rely on `base` or reuse
-paper-specific environments, even if they already have `projectaria-tools`
-installed.
-
-Recommended conda setup:
+Use the dedicated `adt` conda environment. Do not rely on `base`.
 
 ```bash
 conda create -n adt python=3.10
 conda activate adt
 python -m pip install -e ".[dev]"
 ```
-
-This installs the sandbox package plus the dependencies declared in
-`pyproject.toml`, including `projectaria-tools`, `numpy`, `pandas`,
-`matplotlib`, and `tqdm`.
 
 Quick check:
 
@@ -50,18 +72,20 @@ python -c "import projectaria_tools; print(projectaria_tools.__file__)"
 python -m py_compile src/adt_sandbox/adt_files.py scripts/inspect_adt_sequence.py
 ```
 
-`which python` should point to `/home/liumu/miniconda3/envs/adt/bin/python`.
-If it points to `/home/liumu/miniconda3/bin/python`, the terminal is still using
-the base environment.
+`which python` should point to the `adt` environment, for example:
 
-If you need to inspect the upstream Project Aria source, keep that checkout
-outside this repo or under ignored `external/projectaria_tools/`. It is not
-required for normal use.
+```text
+/home/liumu/miniconda3/envs/adt/bin/python
+```
 
-## Data Location
+Some skeleton extraction commands use the official ADT skeleton provider and
+should be run with `conda run -n adt ...` if the current terminal is not already
+inside the `adt` environment.
 
-Do not store ADT data inside the WSL repository. Keep large datasets on the
-Windows D drive and point the sandbox to them with `ADT_DATA_ROOT`.
+## Data and Output Locations
+
+Do not store ADT data inside the repository. Point the sandbox to the raw ADT
+root with `ADT_DATA_ROOT`.
 
 Example:
 
@@ -69,12 +93,11 @@ Example:
 export ADT_DATA_ROOT=/mnt/d/Pose2Gaze-ADT
 ```
 
-For repeated use, put the real value in your shell config or a local untracked
-`.env` file. The template is [configs/paths.example.env](configs/paths.example.env).
-Scripts in this repository automatically load `.env` from the repository root.
-VS Code is also configured to inject this `.env` into Python terminals.
+For repeated use, put the real path in a local untracked `.env` file. The
+template is [configs/paths.example.env](configs/paths.example.env). Scripts
+load `.env` from the repository root.
 
-Inside that root, a typical sequence layout is:
+Raw ADT sequences are expected under:
 
 ```text
 $ADT_DATA_ROOT/
@@ -91,281 +114,175 @@ $ADT_DATA_ROOT/
     └── mps/
 ```
 
-The repository ignores local `data/` directories as a guardrail, but the
-preferred path is to keep ADT files under `/mnt/d/...`.
+Generated feature outputs use a sequence-first layout:
 
-## First Checks
-
-Inspect one downloaded sequence without loading VRS data, using either an
-absolute path:
-
-```bash
-python scripts/inspect_adt_sequence.py /mnt/d/path/to/adt/<sequence_id>
+```text
+$REPORTS_DIR/
+├── sequences/
+│   └── <sequence_id>/
+│       ├── gaze/
+│       ├── head/
+│       ├── dynamics/
+│       ├── events/
+│       ├── events_legacy/
+│       ├── scene/
+│       ├── skeleton/
+│       └── analysis/
+├── batch/
+├── organization_manifest.csv
+└── organization_manifest.json
 ```
 
-or a sequence id resolved under `ADT_DATA_ROOT` from the local `.env`:
+Open one sequence by going to:
 
-```bash
-python scripts/inspect_adt_sequence.py <sequence_id>
+```text
+$REPORTS_DIR/sequences/<sequence_id>/
 ```
 
-Write the same summary as JSON:
+## Feature Layers
+
+| Layer | Main script | Main output | Meaning |
+| --- | --- | --- | --- |
+| Gaze samples | `batch_extract_gaze_samples.py` | `gaze/gaze_samples.csv` | CPF, RGB camera, and Scene gaze features |
+| Gaze quality | `check_gaze_quality.py` | `batch/gaze_quality_report.csv/json` | sequence-level validity summary |
+| Head proxy | `batch_extract_head_proxy.py` | `head/head_samples.csv` | device/CPF pose in Scene plus relative motion |
+| CPF gaze dynamics | `compute_gaze_dynamics_features.py` | `dynamics/gaze_dynamics.csv` | eye-in-head velocity / dispersion |
+| Scene gaze events | `detect_scene_gaze_events.py` | `events/scene_gaze_frame_labels.csv` | Scene-direction fixation / transition labels |
+| Scene object boxes | `batch_extract_scene_object_boxes.py` | `scene/scene_object_boxes.csv` | object cuboids in Scene frame |
+| Gaze-object hits | `batch_compute_gaze_object_hits.py` | `scene/gaze_object_hits.csv` | Scene ray-box first hit and depth-point box check |
+| Skeleton samples | `batch_extract_skeleton_samples.py` | `skeleton/skeleton_samples.csv` | skeleton joints in Scene frame |
+| Head-gaze diagnostics | `analyze_*`, `report_*` | docs + batch summaries | diagnostic analysis, not base features |
+
+Important interpretation notes:
+
+- CPF gaze dynamics are continuous local eye-in-head features, not final
+  fixation labels.
+- Current fixation/transition labels are Scene-direction event labels.
+- Object geometry is cuboids, not meshes or textured surfaces.
+- `gaze_point_scene_xyz` is ADT's depth-defined gaze point.
+- `gaze_object_hits.csv` is a separate ray-box intersection approximation.
+- A ray-box hit does not by itself mean confirmed visual attention to that
+  object.
+- The current head proxy is device/CPF pose, not skeleton head joint pose.
+
+## Quick Start
+
+From the repository root:
 
 ```bash
-python scripts/inspect_adt_sequence.py <sequence_id> --json \
-  > outputs/reports/<sequence_id>_summary.json
+cd /home/liumu/Github_Projects/adt_dataset_sandbox
+conda activate adt
+export REPORTS_DIR=/mnt/d/SparseGaze/ADT-Gaze-structured
 ```
 
-## Exploration Roadmap / 探索路线
-
-ADT 探索路线记录在：
-
-- [docs/adt_exploration_plan.md](docs/adt_exploration_plan.md)
-- [docs/adt_feature_extraction_guide.md](docs/adt_feature_extraction_guide.md)
-- [docs/adt_feature_and_visualization_commands.md](docs/adt_feature_and_visualization_commands.md)
-- [docs/tutorial_gaze_feature_extraction.md](docs/tutorial_gaze_feature_extraction.md)
-- [docs/gaze_quality_report_notes.md](docs/gaze_quality_report_notes.md)
-- [docs/sparsegaze_modeling_notes.md](docs/sparsegaze_modeling_notes.md)
-- [docs/gaze_event_analysis_notes.md](docs/gaze_event_analysis_notes.md)
-- [docs/head_gaze_relationship_analysis.md](docs/head_gaze_relationship_analysis.md)
-- [docs/head_gaze_relationship_report.md](docs/head_gaze_relationship_report.md)
-
-这些文档以中文说明为主，同时保留官方 API、字段名和坐标系英文术语。
-当 scripts、notebooks、APIs 或假设发生变化时，及时同步更新。
-
-已实现的 gaze-first tutorial：
+Inspect one sequence:
 
 ```bash
-python scripts/extract_gaze_samples.py <sequence_id> --start-index 900 --end-index 905 --stride 1
-```
-
-它会导出 `gaze_samples.csv` 和一个轻量 `gaze_summary.json`，先把核心数据和质量
-统计保存下来。调试局部片段时可以用 `--start-index/--end-index` 选帧区间，也可以
-用 `--start-offset-s/--end-offset-s` 按 sequence 内相对秒数选时间区间。
-如果后面想围绕某个 event/window 生成 scene rays、scanpath、overlay frames
-和 overlay video，再运行 `scripts/visualize_gaze_outputs.py`。这样图片和视频
-就作为后处理，而不是默认主流程。
-
-如果下一步想直接批量处理所有 sequence 的 gaze 数据，不做可视化：
-
-```bash
-python scripts/batch_extract_gaze_samples.py
-```
-
-它会为每个 sequence 生成一份 `gaze_samples.csv` 和 `gaze_summary.json`，
-同时在 `outputs/reports/` 下写一份批量总表，方便后续再做 quality report、
-pose、skeleton 和 object feature extraction。
-
-如果批量提取已经完成，只想汇总这些 summary 的 sequence-level 质量：
-
-```bash
-python scripts/check_gaze_quality.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
-```
-
-它只读取已有的 `*_gaze_summary.json`，输出：
-
-- `gaze_quality_report.csv`
-- `gaze_quality_report.json`
-
-不会重新打开 ADT provider，也不会生成可视化。
-
-如果要开始 Scene-level context extraction，先检查一个 sequence 的
-object/skeleton assets：
-
-```bash
+python scripts/inspect_adt_sequence.py Apartment_release_decoration_skeleton_seq131_M1292
 python scripts/inspect_scene_assets.py Apartment_release_decoration_skeleton_seq131_M1292
 ```
 
-当前 Scene feature 路线见
-[docs/scene_feature_extraction_plan.md](docs/scene_feature_extraction_plan.md)。
-第一步优先导出 object boxes，因为它直接服务 3D scene viewer 和后续
-gaze-object hit rate：
+Run the current feature pipeline:
 
 ```bash
-python scripts/extract_scene_object_boxes.py \
-  Apartment_release_decoration_skeleton_seq131_M1292 \
-  --output-dir /mnt/d/SparseGaze/ADT-Gaze
+python scripts/batch_extract_gaze_samples.py --output-dir "$REPORTS_DIR" --stride 1
+python scripts/check_gaze_quality.py --reports-dir "$REPORTS_DIR"
+
+python scripts/batch_extract_head_proxy.py --reports-dir "$REPORTS_DIR"
+python scripts/compute_gaze_dynamics_features.py --reports-dir "$REPORTS_DIR"
+python scripts/detect_scene_gaze_events.py --reports-dir "$REPORTS_DIR"
+
+python scripts/batch_extract_scene_object_boxes.py --output-dir "$REPORTS_DIR"
+python scripts/batch_compute_gaze_object_hits.py --reports-dir "$REPORTS_DIR"
+conda run -n adt python scripts/batch_extract_skeleton_samples.py --reports-dir "$REPORTS_DIR"
 ```
 
-输出：
+Detailed commands, single-sequence variants, fields, and validation commands are
+documented in:
 
-- `<sequence>_scene_object_boxes.csv`
-- `<sequence>_scene_object_boxes_summary.json`
+- [docs/adt_feature_and_visualization_commands.md](docs/adt_feature_and_visualization_commands.md)
 
-如果要导出 skeleton joints，用 `adt` conda 环境：
+## Interactive Notebooks
+
+Current notebooks:
+
+- [notebooks/02_gaze_head_scene_viewer.ipynb](notebooks/02_gaze_head_scene_viewer.ipynb)
+  - Matplotlib 3D sanity check for Scene-frame gaze and head forward vectors.
+- [notebooks/04_gaze_head_scene_viewer_interactive.ipynb](notebooks/04_gaze_head_scene_viewer_interactive.ipynb)
+  - Plotly 3D gaze/head direction viewer with controlled view rotation.
+- [notebooks/05_scene_object_gaze_viewer.ipynb](notebooks/05_scene_object_gaze_viewer.ipynb)
+  - Static Plotly 3D scene viewer for objects, skeleton, head/device
+    trajectory, gaze rays, gaze points, and ray-box hit cues.
+- [notebooks/06_scene_object_gaze_dynamic_viewer.ipynb](notebooks/06_scene_object_gaze_dynamic_viewer.ipynb)
+  - Dynamic frame-by-frame scene viewer with play/slider control.
+  - `hit object outline` means current ray-box intersection only, not confirmed
+    attention.
+- [notebooks/07_multiview_gaze_dashboard.ipynb](notebooks/07_multiview_gaze_dashboard.ipynb)
+  - Multi-view figure finder for local gaze, motion magnitude, image-space gaze,
+    object-hit context, and 3D Scene context.
+  - Design notes: [docs/multiview_gaze_dashboard_design.md](docs/multiview_gaze_dashboard_design.md).
+- [notebooks/08_prediction_gaze_evaluation_viewer.ipynb](notebooks/08_prediction_gaze_evaluation_viewer.ipynb)
+  - SparseGaze prediction-result diagnostics: aggregate errors, per-frame
+    error distributions, anchor/event breakdowns, and selected-window traces.
+- [notebooks/09_npz_gaze_visualization_viewer.ipynb](notebooks/09_npz_gaze_visualization_viewer.ipynb)
+  - Visualizes one per-sequence prediction `.npz` with the same Scene rays,
+    scanpath overlays, overlay frames, and video outputs as CSV gaze
+    visualization.
+  - Uses `.npz` Scene-frame gaze directions plus extracted ADT CSV context.
+
+If the `adt` Jupyter kernel is not visible in VS Code:
 
 ```bash
-conda run -n adt python scripts/extract_skeleton_samples.py \
-  Apartment_release_decoration_skeleton_seq131_M1292 \
-  --input-gaze-csv /mnt/d/SparseGaze/ADT-Gaze/Apartment_release_decoration_skeleton_seq131_M1292_gaze_samples.csv \
-  --output-dir /mnt/d/SparseGaze/ADT-Gaze
+conda run -n adt python -m ipykernel install --user --name adt --display-name "Python (adt)"
 ```
 
-这会生成：
+## Analysis Reports and Plans
 
-- `<sequence>_skeleton_samples.csv`
-- `<sequence>_skeleton_summary.json`
+Project planning and analysis notes:
 
-Skeleton 输出和 gaze rows 对齐，包含 root/head joint 以及全部 51 个 ADT skeleton
-joints 的 Scene-frame xyz 坐标，可用于后续 3D viewer / 火柴人示意。
+- [docs/adt_exploration_plan.md](docs/adt_exploration_plan.md)
+- [docs/adt_feature_extraction_guide.md](docs/adt_feature_extraction_guide.md)
+- [docs/tutorial_gaze_feature_extraction.md](docs/tutorial_gaze_feature_extraction.md)
+- [docs/scene_feature_extraction_plan.md](docs/scene_feature_extraction_plan.md)
+- [docs/gaze_event_analysis_notes.md](docs/gaze_event_analysis_notes.md)
+- [docs/sparsegaze_modeling_notes.md](docs/sparsegaze_modeling_notes.md)
 
-如果 object boxes、skeleton、gaze、head 都已经导出，可以打开：
+Quality and event reports:
 
-```text
-notebooks/05_scene_object_gaze_viewer.ipynb
-```
+- [docs/gaze_quality_report_notes.md](docs/gaze_quality_report_notes.md)
+- [docs/gaze_event_detection_report.md](docs/gaze_event_detection_report.md)
+- [docs/fixation_policy_comparison_notes.md](docs/fixation_policy_comparison_notes.md)
 
-它会在 Plotly 3D 视图里同时显示房间/object cuboids、skeleton、head/device
-trajectory、Scene-frame gaze rays 和 depth-defined gaze points，用来检查
-“人在场景里怎么移动、gaze 在场景里扫过哪里”。
-
-如果下一步开始准备 event analysis，或者想先把可复用的 head 特征层落盘，
-先提取和 gaze 行对齐的 `head_samples.csv`：
-
-```bash
-python scripts/extract_head_proxy.py <sequence_id>
-```
-
-它会读取已有的 `gaze_samples.csv`，按相同时间戳查询 pose，导出：
-
-- `head_samples.csv`
-- `head_summary.json`
-
-当前 `head.py` 的定位已经不是只给 event 用的一张 context 摘要表，而是一层独立
-的 head feature layer。第一版 head 仍然不从 skeleton 提取，而是使用
-`device pose + CPF` 作为 tracker-mounted head proxy；输出同时包含：
-
-- Scene frame 下的绝对 pose
-- 相邻帧的相对平移 / 相对旋转
-- 可直接用于 head-gaze 关系分析和后续模型设计的基础特征
-
-如果下一步要系统分析 head 和 gaze 的关系，而不是立刻改模型，直接运行：
-
-先确认 `head_samples.csv` 是用当前 `head.py` 重构后的 schema 重新导出的。
-如果 D 盘上还是旧版 head CSV，先重跑：
-
-```bash
-python scripts/batch_extract_head_proxy.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
-```
-
-然后再运行：
-
-```bash
-python scripts/analyze_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
-```
-
-它会基于现有：
-
-- `gaze_samples.csv`
-- `head_samples.csv`
-
-生成：
-
-- 每条 sequence 的逐帧 joined table：`*_head_gaze_analysis_rows.csv`
-- 每条 sequence 的统计摘要：`*_head_gaze_analysis_summary.json`
-- 一份批量总表：`batch_head_gaze_analysis_summary.csv`
-- 一份批量报告：`batch_head_gaze_analysis_report.json`
-
-这一步的目标不是新的 detector，而是回答：
-
-- Scene 里 head 和 gaze 的几何关系是什么
-- local gaze dynamics 和 head motion 是否同步
-- current head motion 对下一步 gaze change 有没有统计上的解释力
-
-完整说明见：
+Head-gaze and SparseGaze-oriented diagnostics:
 
 - [docs/head_gaze_relationship_analysis.md](docs/head_gaze_relationship_analysis.md)
-
-如果目标是指导 SparseGaze 模型设计，不要只看 raw head-gaze correlation。
-当前已经补充 SparseGaze-oriented head utility diagnostics：用 sparse-anchor
-residual、lead-lag、current head vs head history 来判断 head 对 missing gaze
-恢复是否真的有用。
-
-```bash
-python scripts/analyze_sparsegaze_head_utility.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
-python scripts/report_sparsegaze_head_utility.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
-```
-
-生成：
-
-- `batch_sparsegaze_head_utility_summary.csv`
-- `batch_sparsegaze_head_utility_lead_lag.csv`
-- `batch_sparsegaze_head_utility_aggregate.csv`
-- `batch_sparsegaze_head_utility_lead_lag_aggregate.csv`
+- [docs/head_gaze_relationship_report.md](docs/head_gaze_relationship_report.md)
+- [docs/scene_head_gaze_relationship_report.md](docs/scene_head_gaze_relationship_report.md)
+- [docs/sparsegaze_head_utility_analysis_plan.md](docs/sparsegaze_head_utility_analysis_plan.md)
 - [docs/sparsegaze_head_utility_report.md](docs/sparsegaze_head_utility_report.md)
 
-分析计划和方法细节见：
+Visualization design:
 
-- [docs/sparsegaze_head_utility_analysis_plan.md](docs/sparsegaze_head_utility_analysis_plan.md)
+- [docs/multiview_gaze_dashboard_design.md](docs/multiview_gaze_dashboard_design.md)
 
-如果要进一步分析 Scene/world gaze dynamics 和 head motion 的关系，先保证
-scene-direction event 已经生成，再运行：
+## Current Research Direction
 
-```bash
-python scripts/analyze_scene_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
-python scripts/report_scene_head_gaze_relationship.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
-```
+The dataset exploration layer is largely in place. The next useful work is to
+turn extracted Scene context into SparseGaze evaluation and analysis tasks:
 
-生成：
-
-- `*_scene_head_gaze_analysis_rows.csv`
-- `*_scene_head_gaze_analysis_summary.json`
-- `batch_scene_head_gaze_analysis_summary.csv`
-- `batch_scene_head_gaze_analysis_report.json`
-- [docs/scene_head_gaze_relationship_report.md](docs/scene_head_gaze_relationship_report.md)
-
-如果要把 whole-sequence CPF-local gaze dynamics feature 也跑出来：
-
-```bash
-python scripts/compute_gaze_dynamics_features.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
-```
-
-它只保存连续特征：
-
-- `*_gaze_dynamics.csv`
-- `*_gaze_dynamics_summary.json`
-- `batch_gaze_dynamics_summary.csv`
-
-注意：这一步不再生成 CPF-based fixation labels。CPF velocity / dispersion
-保留为辅助 dynamics features；scene-direction event 由下一步单独生成。
-
-如果要生成第一版 scene-direction event labels：
-
-```bash
-python scripts/detect_scene_gaze_events.py --reports-dir /mnt/d/SparseGaze/ADT-Gaze
-```
-
-它基于 `gaze_dir_scene_unit_xyz` 计算 Scene-frame angular velocity / dispersion，
-并保存：
-
-- `*_scene_gaze_event_features.csv`
-- `*_scene_gaze_frame_labels.csv`
-- `*_scene_gaze_event_segments.csv`
-- `*_scene_gaze_event_summary.json`
-- `batch_scene_gaze_event_summary.csv`
-
-默认判定规则是：scene velocity 和 scene dispersion 同时低于阈值，且持续时间
-超过最小时长，才标为 `fixation`。
-
-如果要检查某个 sequence / frame window 的 label，可以画 event timeline：
-
-```bash
-python scripts/visualize_scene_gaze_events.py \
-  Apartment_release_decoration_skeleton_seq131_M1292 \
-  --reports-dir /mnt/d/SparseGaze/ADT-Gaze \
-  --start-frame 0 \
-  --end-frame 600
-```
-
-输出默认写到 `outputs/figures/scene_gaze_events/`，包含最终 label、scene
-velocity 和 scene dispersion 三条时间轴。
+- object-level gaze event analysis by combining Scene events and ray-box hits;
+- GT vs predicted gaze comparison in Scene/event/object space;
+- model-output visual diagnostics in the existing scene viewers;
+- device/CPF head proxy vs skeleton head sanity checks;
+- qualitative case selection for paper figures.
 
 ## Working Conventions
 
 - Activate the dedicated `adt` environment before running scripts or notebooks.
-- Keep exploration decisions in `docs/`, not only in chat or notebook outputs.
+- Keep large raw data and generated feature tables outside the repo.
 - Keep reusable code in `src/adt_sandbox`.
-- Keep one-off exploration in `notebooks`.
-- Keep downloaded ADT data on D drive, not in the WSL repo.
-- Keep upstream tool source checkouts out of git; use `external/` only as an
-  ignored local reference if needed.
+- Keep command-line entry points in `scripts`.
+- Keep interactive exploration in `notebooks`.
+- Keep analysis decisions in `docs`, not only in chat or notebook outputs.
+- Keep README as the project entry point and use detailed docs for long command
+  references.

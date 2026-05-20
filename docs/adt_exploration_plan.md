@@ -66,7 +66,7 @@ camera projection、Scene transform 和可视化。
 - `scripts/batch_extract_gaze_samples.py`：已实现批量 gaze-only 导出，不生成
   可视化。
 - `scripts/check_gaze_quality.py`：已实现读取已有 summary 的批量质量汇总。
-- `scripts/visualize_gaze_outputs.py`：已实现从已有 CSV 和选中窗口生成
+- `visualization/visualize_gaze_outputs.py`：已实现从已有 CSV 和选中窗口生成
   scanpath、scene_rays、overlay frames 和 overlay video。
 - `docs/tutorial_gaze_feature_extraction.md`：已实现中文 tutorial 笔记。
 - `notebooks/01_gaze_feature_extraction.ipynb`
