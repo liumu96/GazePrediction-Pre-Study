@@ -1,7 +1,7 @@
 # Multi-View Gaze Dashboard Design Notes
 
 This document explains the purpose and visual design of
-`notebooks/07_multiview_gaze_dashboard.ipynb`.
+`Experiments/visualization & Analysis/ADT/notebooks/07_multiview_gaze_dashboard.ipynb`.
 
 The notebook is an interactive figure finder, not the final paper figure
 itself. Its role is to help select a sequence, frame window, and focus frame.

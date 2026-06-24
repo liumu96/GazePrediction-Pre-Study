@@ -195,7 +195,7 @@ Validation on `Apartment_release_decoration_skeleton_seq131_M1292`:
 Notebook:
 
 ```text
-notebooks/05_scene_object_gaze_viewer.ipynb
+Experiments/visualization & Analysis/ADT/notebooks/05_scene_object_gaze_viewer.ipynb
 ```
 
 Inputs under the reports directory:
@@ -293,7 +293,7 @@ Interpretation:
 
 ## Remaining Next Steps
 
-1. Extend `notebooks/05_scene_object_gaze_viewer.ipynb` later with predicted
+1. Extend `Experiments/visualization & Analysis/ADT/notebooks/05_scene_object_gaze_viewer.ipynb` later with predicted
    gaze rays, once SparseGaze predictions are exported in the same Scene-frame
    format.
 2. Add prediction evaluation:

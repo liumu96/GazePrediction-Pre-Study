@@ -69,7 +69,7 @@ camera projection、Scene transform 和可视化。
 - `visualization/visualize_gaze_outputs.py`：已实现从已有 CSV 和选中窗口生成
   scanpath、scene_rays、overlay frames 和 overlay video。
 - `docs/tutorial_gaze_feature_extraction.md`：已实现中文 tutorial 笔记。
-- `notebooks/01_gaze_feature_extraction.ipynb`
+- `Experiments/visualization & Analysis/ADT/notebooks/01_gaze_feature_extraction.ipynb`
 
 Gaze validity checks：
 
@@ -105,7 +105,7 @@ Gaze visualizations：
 
 - `src/adt_sandbox/pose.py`
 - `src/adt_sandbox/objects.py`
-- `notebooks/02_pose_skeleton_objects.ipynb`
+- `Experiments/visualization & Analysis/ADT/notebooks/02_pose_skeleton_objects.ipynb`
 
 Feature checks：
 
@@ -134,7 +134,7 @@ Visualizations：
 
 - `src/adt_sandbox/timestamps.py`
 - `scripts/check_sequence_alignment.py`
-- `notebooks/03_timestamp_alignment.ipynb`
+- `Experiments/visualization & Analysis/ADT/notebooks/03_timestamp_alignment.ipynb`
 
 候选 anchor timestamps：
 
@@ -213,7 +213,7 @@ event 后续单独设计。
 - `scripts/detect_scene_gaze_events.py`
 - `scripts/analyze_head_gaze_relationship.py`
 - `scripts/analyze_scene_head_gaze_relationship.py`
-- `notebooks/04_gaze_head_scene_viewer_interactive.ipynb`
+- `Experiments/visualization & Analysis/ADT/notebooks/04_gaze_head_scene_viewer_interactive.ipynb`
 
 当前状态：
 

@@ -514,4 +514,4 @@ viewer_projects_adt --sequence_path /mnt/d/Pose2Gaze-ADT/<sequence_id>
 下一步文件：
 
 - `scripts/check_gaze_quality.py`
-- `notebooks/01_gaze_feature_extraction.ipynb`
+- `Experiments/visualization & Analysis/ADT/notebooks/01_gaze_feature_extraction.ipynb`

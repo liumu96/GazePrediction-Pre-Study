@@ -46,6 +46,88 @@ def write_analysis_figures(
     return paths
 
 
+def write_anchor_gap_figures(
+    *,
+    gap_summary: pd.DataFrame,
+    gap_event_summary: pd.DataFrame,
+    output_dir: Path,
+) -> dict[str, Path]:
+    """Write anchor-gap position figures."""
+
+    figure_dir = output_dir / "figures"
+    figure_dir.mkdir(parents=True, exist_ok=True)
+    paths = {
+        "anchor_gap_position": figure_dir / "anchor_gap_position.png",
+        "anchor_gap_event_position": figure_dir / "anchor_gap_event_position.png",
+    }
+    plot_anchor_gap_position(gap_summary, paths["anchor_gap_position"])
+    plot_anchor_gap_event_position(gap_event_summary, paths["anchor_gap_event_position"])
+    return paths
+
+
+def write_anchor_gap_report(
+    *,
+    gap_summary: pd.DataFrame,
+    gap_event_summary: pd.DataFrame,
+    figure_paths: dict[str, Path],
+    output_path: Path,
+) -> None:
+    """Write a compact Markdown report for anchor-gap position analysis."""
+
+    lines = [
+        "# Anchor-Gap Position Analysis",
+        "",
+        "This report evaluates missing-frame angular error as a function of position between sparse gaze anchors.",
+        "Anchor frames are excluded; only evaluated missing frames bracketed by a previous and next anchor are used.",
+        "",
+        "## Figures",
+        "",
+    ]
+    for key, path in figure_paths.items():
+        if path.exists():
+            lines.extend([f"### {key}", "", f"![{key}]({path.relative_to(output_path.parent).as_posix()})", ""])
+
+    lines.extend(["## Gap Position Summary", ""])
+    if gap_summary.empty:
+        lines.append("No anchor-gap summary available.")
+    else:
+        cols = [
+            "model",
+            "eval_kind",
+            "target_hz",
+            "phase",
+            "mean_normalized_gap_position",
+            "sequence_n",
+            "frame_n",
+            "sequence_macro_mae_deg",
+            "frame_weighted_mae_deg",
+            "p90_deg",
+        ]
+        lines.extend(dataframe_to_markdown(gap_summary[existing(cols, gap_summary)].head(80)))
+
+    lines.extend(["", "## Event-Conditioned Summary", ""])
+    if gap_event_summary.empty:
+        lines.append("No event-conditioned anchor-gap summary available.")
+    else:
+        cols = [
+            "model",
+            "eval_kind",
+            "target_hz",
+            "phase",
+            "scene_event_label",
+            "mean_normalized_gap_position",
+            "sequence_n",
+            "frame_n",
+            "sequence_macro_mae_deg",
+        ]
+        focus = gap_event_summary[
+            gap_event_summary["scene_event_label"].isin(["fixation", "transition"])
+        ]
+        lines.extend(dataframe_to_markdown(focus[existing(cols, focus)].head(120)))
+
+    output_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def write_markdown_report(
     *,
     sequence_summary: pd.DataFrame,
@@ -275,6 +357,104 @@ def plot_yaw_pitch_residual(frame_summary: pd.DataFrame, output_path: Path, max_
     save_figure(fig, output_path)
 
 
+def plot_anchor_gap_position(gap_summary: pd.DataFrame, output_path: Path) -> None:
+    """Plot sequence-macro error as a function of normalized anchor-gap position."""
+
+    fig, ax = plt.subplots(figsize=(8.5, 4.8))
+    if gap_summary.empty:
+        draw_empty(ax, "No anchor-gap summary")
+    else:
+        for label, group in gap_summary.groupby(gap_method_label_columns(gap_summary), sort=False):
+            x_col = gap_x_column(group)
+            group = group.sort_values(x_col)
+            ax.plot(
+                group[x_col],
+                group["sequence_macro_mae_deg"],
+                marker="o",
+                linewidth=1.8,
+                label=format_gap_label(label),
+            )
+        ax.set_xlabel("Normalized position between gaze anchors")
+        ax.set_ylabel("Sequence-macro MAE [deg]")
+        ax.set_title("Missing-frame error across anchor gap")
+        ax.set_xlim(0.0, 1.0)
+        ax.grid(alpha=GRID_ALPHA)
+        ax.legend(fontsize=8)
+    save_figure(fig, output_path)
+
+
+def plot_anchor_gap_event_position(gap_event_summary: pd.DataFrame, output_path: Path) -> None:
+    """Plot anchor-gap curves split by fixation and transition labels."""
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4.8), sharey=True)
+    focus_events = ["fixation", "transition"]
+    if gap_event_summary.empty:
+        for ax in axes:
+            draw_empty(ax, "No event-conditioned gap summary")
+    else:
+        for ax, event in zip(axes, focus_events):
+            data = gap_event_summary[gap_event_summary["scene_event_label"] == event]
+            if data.empty:
+                draw_empty(ax, f"No {event} rows")
+                continue
+            for label, group in data.groupby(gap_method_label_columns(data), sort=False):
+                x_col = gap_x_column(group)
+                group = group.sort_values(x_col)
+                ax.plot(
+                    group[x_col],
+                    group["sequence_macro_mae_deg"],
+                    marker="o",
+                    linewidth=1.8,
+                    label=format_gap_label(label),
+                )
+            ax.set_title(event)
+            ax.set_xlabel("Normalized position between gaze anchors")
+            ax.set_xlim(0.0, 1.0)
+            ax.grid(alpha=GRID_ALPHA)
+        axes[0].set_ylabel("Sequence-macro MAE [deg]")
+        axes[-1].legend(fontsize=8)
+    save_figure(fig, output_path)
+
+
+def gap_method_label_columns(frame: pd.DataFrame) -> list[str]:
+    """Return grouping columns that identify one plotted method curve."""
+
+    cols = ["model", "eval_kind", "target_hz", "phase"]
+    return [col for col in cols if col in frame.columns]
+
+
+def gap_x_column(frame: pd.DataFrame) -> str:
+    """Prefer the observed mean position over the coarse bin center."""
+
+    if "mean_normalized_gap_position" in frame.columns:
+        return "mean_normalized_gap_position"
+    return "gap_bin_center"
+
+
+def format_gap_label(label: Any) -> str:
+    """Format a groupby label tuple for gap-position plots."""
+
+    if not isinstance(label, tuple):
+        label = (label,)
+    if len(label) == 4:
+        model, eval_kind, target_hz, phase = label
+        if str(model) == "HAGI++":
+            return f"HAGI++ {int(target_hz)}Hz"
+        names = {
+            "rollout": "SparseGaze rollout",
+            "rollout_linear": "Linear",
+            "rollout_pchip": "PCHIP",
+            "rollout_gt": "GT-repair",
+            "oracle": "Oracle",
+        }
+        method = names.get(str(eval_kind), str(eval_kind))
+        suffix = f" {int(target_hz)}Hz"
+        if int(phase) != 0:
+            suffix += f" p{int(phase)}"
+        return method + suffix
+    return ":".join(str(part) for part in label)
+
+
 def evaluated_frames(frame_summary: pd.DataFrame) -> pd.DataFrame:
     """Return evaluated frames; fallback to all frames if no eval mask exists."""
 
@@ -330,4 +510,3 @@ def save_figure(fig: Any, output_path: Path) -> None:
     fig.tight_layout()
     fig.savefig(output_path, dpi=180)
     plt.close(fig)
-

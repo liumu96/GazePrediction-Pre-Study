@@ -157,9 +157,64 @@ def load_prediction_frame(npz_path: Path, reports_dir: Path | None = None) -> pd
             "feedback_writeback_mode": extra.get("feedback_writeback_mode", ""),
         }
     )
+    frame = attach_anchor_gap_columns(frame)
     if reports_dir is not None:
         frame = attach_scene_event_labels(frame, reports_dir, sequence)
     return frame
+
+
+def attach_anchor_gap_columns(frame: pd.DataFrame) -> pd.DataFrame:
+    """Attach position-inside-anchor-interval columns.
+
+    The valid gap rows are non-anchor frames bracketed by a previous and next
+    sparse gaze anchor. Anchor frames themselves get ``anchor_gap_valid=False``
+    because they are not missing-frame reconstruction targets.
+    """
+
+    if frame.empty or "anchor_mask" not in frame:
+        return frame.copy()
+
+    output = frame.copy()
+    anchor_mask = output["anchor_mask"].to_numpy(dtype=bool)
+    n_frames = len(output)
+    frames = np.arange(n_frames, dtype=np.int64)
+    anchors = np.flatnonzero(anchor_mask).astype(np.int64)
+
+    prev_anchor = np.full(n_frames, -1, dtype=np.int64)
+    next_anchor = np.full(n_frames, -1, dtype=np.int64)
+    interval = np.full(n_frames, -1, dtype=np.int64)
+    since_prev = np.full(n_frames, -1, dtype=np.int64)
+    until_next = np.full(n_frames, -1, dtype=np.int64)
+    normalized = np.full(n_frames, np.nan, dtype=np.float64)
+    nearest = np.full(n_frames, -1, dtype=np.int64)
+
+    if len(anchors):
+        prev_slots = np.searchsorted(anchors, frames, side="right") - 1
+        next_slots = np.searchsorted(anchors, frames, side="left")
+        prev_valid = prev_slots >= 0
+        next_valid = next_slots < len(anchors)
+
+        prev_anchor[prev_valid] = anchors[prev_slots[prev_valid]]
+        next_anchor[next_valid] = anchors[next_slots[next_valid]]
+        bracketed = prev_valid & next_valid
+        interval[bracketed] = next_anchor[bracketed] - prev_anchor[bracketed]
+        valid_interval = bracketed & (interval > 0)
+        since_prev[valid_interval] = frames[valid_interval] - prev_anchor[valid_interval]
+        until_next[valid_interval] = next_anchor[valid_interval] - frames[valid_interval]
+        normalized[valid_interval] = since_prev[valid_interval] / interval[valid_interval]
+        nearest[valid_interval] = np.minimum(since_prev[valid_interval], until_next[valid_interval])
+
+    gap_valid = (interval > 0) & ~anchor_mask
+    output["prev_anchor_frame"] = prev_anchor
+    output["next_anchor_frame"] = next_anchor
+    output["anchor_interval_frames"] = interval
+    output["missing_interval_frames"] = np.where(interval > 0, interval - 1, -1)
+    output["frames_since_prev_anchor"] = since_prev
+    output["frames_until_next_anchor"] = until_next
+    output["nearest_anchor_distance_frames"] = nearest
+    output["normalized_gap_position"] = normalized
+    output["anchor_gap_valid"] = gap_valid
+    return output
 
 
 def attach_scene_event_labels(frame: pd.DataFrame, reports_dir: Path, sequence: str) -> pd.DataFrame:
@@ -263,6 +318,96 @@ def summarize_many_predictions(
     event_summary = pd.concat(event_tables, ignore_index=True) if event_tables else pd.DataFrame()
     model_summary = summarize_model_level(sequence_summary)
     return sequence_summary, model_summary, event_summary
+
+
+def summarize_anchor_gap_position(
+    frame_summary: pd.DataFrame,
+    *,
+    bins: int = 10,
+    event_conditioned: bool = False,
+) -> pd.DataFrame:
+    """Summarize missing-frame error by normalized anchor-gap position.
+
+    The summary reports both frame-weighted and sequence-macro MAE. Sequence
+    macro is the paper-facing quantity because it prevents long sequences from
+    dominating a gap-position bin.
+    """
+
+    columns = [
+        "model",
+        "split",
+        "eval_kind",
+        "target_hz",
+        "phase",
+        "gap_bin",
+        "gap_bin_start",
+        "gap_bin_end",
+        "gap_bin_center",
+        "mean_normalized_gap_position",
+        "mean_frames_since_prev_anchor",
+        "mean_frames_until_next_anchor",
+        "sequence_n",
+        "frame_n",
+        "frame_weighted_mae_deg",
+        "sequence_macro_mae_deg",
+        "median_deg",
+        "p90_deg",
+    ]
+    if event_conditioned:
+        columns.insert(5, "scene_event_label")
+    if frame_summary.empty:
+        return pd.DataFrame(columns=columns)
+    if "anchor_gap_valid" not in frame_summary:
+        frame_summary = attach_anchor_gap_columns(frame_summary)
+
+    mask = (
+        frame_summary["eval_mask"].astype(bool)
+        & ~frame_summary["anchor_mask"].astype(bool)
+        & frame_summary["anchor_gap_valid"].astype(bool)
+        & frame_summary["normalized_gap_position"].between(0.0, 1.0, inclusive="both")
+    )
+    data = frame_summary.loc[mask].copy()
+    if data.empty:
+        return pd.DataFrame(columns=columns)
+
+    edges = np.linspace(0.0, 1.0, bins + 1)
+    bin_index = np.searchsorted(edges, data["normalized_gap_position"].to_numpy(), side="right") - 1
+    data["gap_bin"] = np.clip(bin_index, 0, bins - 1).astype(int)
+    data["gap_bin_start"] = edges[data["gap_bin"].to_numpy()]
+    data["gap_bin_end"] = edges[data["gap_bin"].to_numpy() + 1]
+    data["gap_bin_center"] = (data["gap_bin_start"] + data["gap_bin_end"]) / 2.0
+
+    group_cols = ["model", "split", "eval_kind", "target_hz", "phase"]
+    if event_conditioned and "scene_event_label" in data:
+        group_cols.append("scene_event_label")
+    group_cols.extend(["gap_bin", "gap_bin_start", "gap_bin_end", "gap_bin_center"])
+
+    seq_mae = (
+        data.groupby([*group_cols, "sequence"], as_index=False, sort=False)
+        .agg(sequence_bin_mae_deg=("angular_error_deg", "mean"))
+    )
+    seq_macro = (
+        seq_mae.groupby(group_cols, as_index=False, sort=False)
+        .agg(
+            sequence_n=("sequence", "nunique"),
+            sequence_macro_mae_deg=("sequence_bin_mae_deg", "mean"),
+        )
+    )
+    frame_stats = (
+        data.groupby(group_cols, as_index=False, sort=False)
+        .agg(
+            frame_n=("angular_error_deg", "size"),
+            mean_normalized_gap_position=("normalized_gap_position", "mean"),
+            mean_frames_since_prev_anchor=("frames_since_prev_anchor", "mean"),
+            mean_frames_until_next_anchor=("frames_until_next_anchor", "mean"),
+            frame_weighted_mae_deg=("angular_error_deg", "mean"),
+            median_deg=("angular_error_deg", "median"),
+            p90_deg=("angular_error_deg", lambda values: float(np.percentile(values, 90))),
+        )
+    )
+    summary = frame_stats.merge(seq_macro, on=group_cols, how="left")
+    summary = summary[columns]
+    return summary.sort_values(group_cols).reset_index(drop=True)
 
 
 def load_many_prediction_frames(

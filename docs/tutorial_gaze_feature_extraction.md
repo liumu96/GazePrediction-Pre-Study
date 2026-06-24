@@ -523,12 +523,12 @@ Reference-frame scanpath：
    `report_scene_head_gaze_relationship.py`。
 9. Scene event timeline visualization：`visualize_scene_gaze_events.py`。
    当前已经完成窗口级抽查。
-10. Gaze/head 3D viewer：`notebooks/02_gaze_head_scene_viewer.ipynb` 和
-   `notebooks/04_gaze_head_scene_viewer_interactive.ipynb`。
+10. Gaze/head 3D viewer：`Experiments/visualization & Analysis/ADT/notebooks/02_gaze_head_scene_viewer.ipynb` 和
+   `Experiments/visualization & Analysis/ADT/notebooks/04_gaze_head_scene_viewer_interactive.ipynb`。
 
 还没有完成：
 
-1. `notebooks/01_gaze_feature_extraction.ipynb` 没有实际创建；当前已经由脚本、
+1. `Experiments/visualization & Analysis/ADT/notebooks/01_gaze_feature_extraction.ipynb` 没有实际创建；当前已经由脚本、
    文档和后续 viewer notebook 覆盖了大部分功能。
 2. Object-level fixation 还没有实现。当前 scene-direction event 只判断世界方向
    是否稳定，还没有判断 gaze 是否稳定落在同一个 object / surface / AOI。

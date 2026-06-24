@@ -496,23 +496,61 @@ Use this to inspect:
 - Scene angular dispersion
 - event segment boundaries
 
-## 12. Interactive Notebooks
+## 12. SparseGaze Evaluation Experiment
+
+SparseGaze-specific evaluation code and reports live under:
+
+```text
+Experiments/sparsegaze_evaluation/
+```
+
+This experiment reads the event CSVs from `detect_scene_gaze_events.py` and
+SparseGaze `sequence_predictions/*.npz` files. It reports missing-frame
+overall/fixation/transition MAE in one table and can plot GT scene-gaze event
+spans behind SparseGaze angular-error curves.
+
+```bash
+python Experiments/sparsegaze_evaluation/event_evaluation.py \
+  Apartment_release_decoration_skeleton_seq133_M1292 \
+  --fps 6 \
+  --reports-dir "$REPORTS_DIR" \
+  --start-frame 0 \
+  --max-frames 600
+```
+
+Select SparseGaze variants with repeated `--mode` flags:
+
+```bash
+python Experiments/sparsegaze_evaluation/event_evaluation.py \
+  Apartment_release_decoration_skeleton_seq133_M1292 \
+  --fps 6 \
+  --mode rollout \
+  --mode rollout_pchip
+```
+
+Outputs default to:
+
+```text
+Experiments/sparsegaze_evaluation/outputs/
+```
+
+## 13. Interactive Notebooks
 
 Current notebooks:
 
-- `notebooks/02_gaze_head_scene_viewer.ipynb`
+- `Experiments/visualization & Analysis/ADT/notebooks/02_gaze_head_scene_viewer.ipynb`
   - Matplotlib 3D view of Scene-frame gaze and head forward vectors.
   - Good for quick direction sanity checks.
-- `notebooks/04_gaze_head_scene_viewer_interactive.ipynb`
+- `Experiments/visualization & Analysis/ADT/notebooks/04_gaze_head_scene_viewer_interactive.ipynb`
   - Plotly 3D view of Scene-frame gaze/head vectors.
   - Supports interactive zoom and controlled azimuth rotation.
-- `notebooks/05_scene_object_gaze_viewer.ipynb`
+- `Experiments/visualization & Analysis/ADT/notebooks/05_scene_object_gaze_viewer.ipynb`
   - Plotly 3D scene viewer.
   - Shows object cuboids, skeleton, head/device trajectory, gaze rays, and
     depth-defined gaze points.
   - Requires `gaze_samples`, `head_samples`, `scene_object_boxes`, and
     `skeleton_samples`.
-- `notebooks/06_scene_object_gaze_dynamic_viewer.ipynb`
+- `Experiments/visualization & Analysis/ADT/notebooks/06_scene_object_gaze_dynamic_viewer.ipynb`
   - Dynamic Plotly/IPyWidgets scene viewer with play/slider frame control.
   - Updates dynamic object boxes, skeleton pose, gaze ray, gaze point, ray-box
     hit point, and current ray-box hit outline over time.
@@ -538,13 +576,13 @@ Current notebooks:
       the current gaze ray. This is a ray-box hit cue, not confirmed attention.
     - `auto render`: when enabled, slider/play changes rebuild the 3D figure.
       Disable it if the notebook UI becomes slow, then use `Render current`.
-- `notebooks/07_multiview_gaze_dashboard.ipynb`
+- `Experiments/visualization & Analysis/ADT/notebooks/07_multiview_gaze_dashboard.ipynb`
   - Interactive figure finder for one sequence/window.
   - Shows local gaze, motion magnitude, image-space gaze, object-hit context,
     and 3D Scene context in one coordinated figure.
   - Includes a lightweight prediction-track hook for future model-output CSVs.
   - Design notes: `docs/multiview_gaze_dashboard_design.md`.
-- `notebooks/08_prediction_gaze_evaluation_viewer.ipynb`
+- `Experiments/visualization & Analysis/ADT/notebooks/08_prediction_gaze_evaluation_viewer.ipynb`
   - Prediction-result evaluation viewer for SparseGaze-style eval outputs.
   - Reads aggregate `*_missing_phase*.csv` tables and, when available,
     per-sequence `sequence_predictions/*.npz` files.
@@ -553,7 +591,7 @@ Current notebooks:
     selected-window GT/predicted yaw-pitch traces and scanpaths.
   - Edit `EVAL_ROOTS` in the first configuration cell to compare different
     model directories under `/home/liumu/Github_Projects/SparseGaze/outputs/eval`.
-- `notebooks/09_npz_gaze_visualization_viewer.ipynb`
+- `Experiments/visualization & Analysis/ADT/notebooks/09_npz_gaze_visualization_viewer.ipynb`
   - CSV-style gaze visualization for one per-sequence prediction `.npz` file.
   - Reads `pred_xyz` or `gt_xyz` from SparseGaze eval outputs and reuses the
     extracted ADT `gaze_samples.csv` for timestamps, origins, RGB projection
@@ -564,6 +602,20 @@ Current notebooks:
     unit gaze directions. They do not store depth-defined gaze points, so the
     notebook either uses GT gaze depth for endpoint visualization or a fixed
     ray length for direction-only comparison.
+- `Experiments/visualization & Analysis/ADT/notebooks/10_adt_hagi_sparsegaze_compare.ipynb`
+  - HAGI++ vs SparseGaze comparison notebook for ADT low-framerate imputation.
+  - Reads HAGI++ `sliding_primary_nsample*_framerate_*.npz` and
+    `sliding_metrics_nsample*_framerate_*.json` files plus SparseGaze
+    `test/<mode>/sequence_predictions/<sequence>/hz*_phase0.npz` files.
+  - Reports aggregate summaries, common-frame MAE, and an interactive
+    pitch/yaw/error trace over common missing frames.
+  - Default paths can be overridden with `HAGI_REPO_ROOT`, `HAGI_ADT_DATA`,
+    `HAGI_ADT_IMPUTATION_DIR`, and `SPARSEGAZE_ADT_EVAL_DIR`.
+- `Experiments/sparsegaze_evaluation/sparsegaze_event_comparison_viewer.ipynb`
+  - Experiment-local notebook for SparseGaze event-conditioned evaluation.
+  - Compares SparseGaze rollout variants against GT scene-gaze event labels.
+  - Shows event spans, missing-frame angular error curves, and method-level
+    overall/fixation/transition MAE summaries.
 
 To use the notebooks, first make sure the feature layers exist in:
 
@@ -610,7 +662,7 @@ python visualization/visualize_scene_gaze_events.py \
 and open:
 
 ```text
-notebooks/05_scene_object_gaze_viewer.ipynb
+Experiments/visualization & Analysis/ADT/notebooks/05_scene_object_gaze_viewer.ipynb
 ```
 
 ## Validation Commands
@@ -639,6 +691,6 @@ Notebook JSON check:
 
 ```bash
 python -m json.tool \
-  notebooks/05_scene_object_gaze_viewer.ipynb \
+  Experiments/visualization & Analysis/ADT/notebooks/05_scene_object_gaze_viewer.ipynb \
   /tmp/scene_viewer_notebook_check.json
 ```

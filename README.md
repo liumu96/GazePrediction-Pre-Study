@@ -204,31 +204,56 @@ documented in:
 
 ## Interactive Notebooks
 
-Current notebooks:
+Current dataset-specific notebooks are stored next to the corresponding
+visualization and analysis scripts.
 
-- [notebooks/02_gaze_head_scene_viewer.ipynb](notebooks/02_gaze_head_scene_viewer.ipynb)
+ADT:
+
+- [02_gaze_head_scene_viewer.ipynb](<Experiments/visualization & Analysis/ADT/notebooks/02_gaze_head_scene_viewer.ipynb>)
   - Matplotlib 3D sanity check for Scene-frame gaze and head forward vectors.
-- [notebooks/04_gaze_head_scene_viewer_interactive.ipynb](notebooks/04_gaze_head_scene_viewer_interactive.ipynb)
+- [04_gaze_head_scene_viewer_interactive.ipynb](<Experiments/visualization & Analysis/ADT/notebooks/04_gaze_head_scene_viewer_interactive.ipynb>)
   - Plotly 3D gaze/head direction viewer with controlled view rotation.
-- [notebooks/05_scene_object_gaze_viewer.ipynb](notebooks/05_scene_object_gaze_viewer.ipynb)
+- [05_scene_object_gaze_viewer.ipynb](<Experiments/visualization & Analysis/ADT/notebooks/05_scene_object_gaze_viewer.ipynb>)
   - Static Plotly 3D scene viewer for objects, skeleton, head/device
     trajectory, gaze rays, gaze points, and ray-box hit cues.
-- [notebooks/06_scene_object_gaze_dynamic_viewer.ipynb](notebooks/06_scene_object_gaze_dynamic_viewer.ipynb)
+- [06_scene_object_gaze_dynamic_viewer.ipynb](<Experiments/visualization & Analysis/ADT/notebooks/06_scene_object_gaze_dynamic_viewer.ipynb>)
   - Dynamic frame-by-frame scene viewer with play/slider control.
   - `hit object outline` means current ray-box intersection only, not confirmed
     attention.
-- [notebooks/07_multiview_gaze_dashboard.ipynb](notebooks/07_multiview_gaze_dashboard.ipynb)
+- [07_multiview_gaze_dashboard.ipynb](<Experiments/visualization & Analysis/ADT/notebooks/07_multiview_gaze_dashboard.ipynb>)
   - Multi-view figure finder for local gaze, motion magnitude, image-space gaze,
     object-hit context, and 3D Scene context.
   - Design notes: [docs/multiview_gaze_dashboard_design.md](docs/multiview_gaze_dashboard_design.md).
-- [notebooks/08_prediction_gaze_evaluation_viewer.ipynb](notebooks/08_prediction_gaze_evaluation_viewer.ipynb)
+- [08_prediction_gaze_evaluation_viewer.ipynb](<Experiments/visualization & Analysis/ADT/notebooks/08_prediction_gaze_evaluation_viewer.ipynb>)
   - SparseGaze prediction-result diagnostics: aggregate errors, per-frame
     error distributions, anchor/event breakdowns, and selected-window traces.
-- [notebooks/09_npz_gaze_visualization_viewer.ipynb](notebooks/09_npz_gaze_visualization_viewer.ipynb)
+- [09_npz_gaze_visualization_viewer.ipynb](<Experiments/visualization & Analysis/ADT/notebooks/09_npz_gaze_visualization_viewer.ipynb>)
   - Visualizes one per-sequence prediction `.npz` with the same Scene rays,
     scanpath overlays, overlay frames, and video outputs as CSV gaze
     visualization.
   - Uses `.npz` Scene-frame gaze directions plus extracted ADT CSV context.
+- [10_adt_hagi_sparsegaze_compare.ipynb](<Experiments/visualization & Analysis/ADT/notebooks/10_adt_hagi_sparsegaze_compare.ipynb>)
+  - Compares HAGI++ ADT imputation outputs with SparseGaze rollout variants on
+    common missing frames.
+  - Uses `visualization/adt_hagi_sparsegaze_compare.py`; configure input paths
+    with `HAGI_*` and `SPARSEGAZE_ADT_EVAL_DIR` environment variables.
+- [11_scene_scanpath_3d_interactive.ipynb](<Experiments/visualization & Analysis/ADT/notebooks/11_scene_scanpath_3d_interactive.ipynb>)
+  - Interactive Plotly 3D scene-space scanpath viewer for GT, SparseGaze, and HAGI++.
+- [12_scene_scanpath_3d_animation.ipynb](<Experiments/visualization & Analysis/ADT/notebooks/12_scene_scanpath_3d_animation.ipynb>)
+  - Dynamic Plotly 3D scene-space scanpath animation with frame controls.
+
+EgoBody:
+
+- [13_egobody_missing_gaze_interactive.ipynb](<Experiments/visualization & Analysis/egobody/notebooks/13_egobody_missing_gaze_interactive.ipynb>)
+  - Interactive missing-frame gaze-direction comparison for SparseGaze residual
+    and HAGI++.
+
+Other:
+
+- [Experiments/sparsegaze_evaluation/](Experiments/sparsegaze_evaluation/)
+  - Focused SparseGaze evaluation report, scripts, and notebook.
+  - Includes missing-frame event-conditioned MAE analysis and timeline
+    visualization against GT scene-gaze labels.
 
 If the `adt` Jupyter kernel is not visible in VS Code:
 
