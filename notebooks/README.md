@@ -1,40 +1,28 @@
 # Notebooks / 交互式探索
 
-notebooks 用于交互式探索和可视化验证。可复用的 parsing、inspection、
-plotting helpers 应该放在 `src/adt_sandbox/`，不要把核心逻辑只留在
-notebook cell 里。
+Dataset-specific notebooks have been moved next to their visualization and
+analysis scripts, so each dataset can be inspected from one place.
 
-计划 notebooks：
+## ADT
 
-- `01_gaze_feature_extraction.ipynb`: inspect gaze extraction, validity,
-  projection to RGB, scanpath visualization, and Scene-frame gaze rays。先把
-  gaze 的提取、验证和 2D/3D 可视化跑通。
-- `02_gaze_head_scene_viewer.ipynb`: interactively choose one sequence and one
-  frame range, then render Scene-frame gaze direction and head forward direction
-  together in 3D。默认把 gaze 和 head 都画成固定长度单位方向箭头，便于直接
-  比较方向；如果需要，也可以切回 depth-scaled gaze 显示。
-- `04_gaze_head_scene_viewer_interactive.ipynb`: 与 `02` 看同一类数据，但改成
-  `plotly` 交互式 3D。当前不是完全自由轨道相机，而是受控视角：
-  - 指定哪个 Scene 轴当作现实里的“上”
-  - 用 `azimuth` 滑块绕这个竖直轴旋转
-  - 鼠标默认只做 zoom
-  - 当前 ADT 这批提取结果默认使用 `Scene Y up`
-- `05_scene_object_gaze_viewer.ipynb`: 交互式查看 Scene-frame object boxes、
-  skeleton、head/device trajectory、gaze rays 和 depth-defined gaze points。
-  这个 notebook 依赖已经批量导出的 `gaze_samples`、`head_samples`、
-  `scene_object_boxes` 和 `skeleton_samples`，用于检查“人在房间里移动、
-  gaze 在场景里扫过哪里”的 3D 关系。
-- `02_pose_skeleton_objects.ipynb`: inspect Aria pose, skeleton joints, object
-  2D/3D boxes, and image/depth/segmentation streams。扩展到 pose、skeleton、
-  object、depth 和 segmentation。
-- `03_timestamp_alignment.ipynb`: compare gaze, skeleton, trajectory, and box
-  timestamps before preprocessing。正式构建 feature table 前先理解
-  timestamp alignment。
+Path: `Experiments/visualization & Analysis/ADT/notebooks/`
 
-稳定结论要同步写进 `docs/`，不要只留在 notebook cells。当前 API map 在
-`docs/adt_feature_extraction_guide.md`，已验证的 gaze-first tutorial 在
-`docs/tutorial_gaze_feature_extraction.md`。
+- `02_gaze_head_scene_viewer.ipynb`
+- `04_gaze_head_scene_viewer_interactive.ipynb`
+- `05_scene_object_gaze_viewer.ipynb`
+- `06_scene_object_gaze_dynamic_viewer.ipynb`
+- `07_multiview_gaze_dashboard.ipynb`
+- `08_prediction_gaze_evaluation_viewer.ipynb`
+- `09_npz_gaze_visualization_viewer.ipynb`
+- `10_adt_hagi_sparsegaze_compare.ipynb`
+- `11_scene_scanpath_3d_interactive.ipynb`
+- `12_scene_scanpath_3d_animation.ipynb`
 
-`01_gaze_feature_extraction.ipynb` 创建时应复用
-`scripts/extract_gaze_samples.py` 和 `src/adt_sandbox/gaze.py`，主要负责交互式
-查看 CSV、overlay、scanpath 和 3D rays，而不是重新实现提取逻辑。
+## EgoBody
+
+Path: `Experiments/visualization & Analysis/egobody/notebooks/`
+
+- `13_egobody_missing_gaze_interactive.ipynb`
+
+Stable conclusions should still be summarized in `docs/`; notebook cells are
+for exploration and visual checks.

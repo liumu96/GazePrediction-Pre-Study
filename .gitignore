@@ -212,6 +212,15 @@ __marimo__/
 # Windows alternate data stream metadata occasionally copied from downloads.
 *:Zone.Identifier
 
+# Generated local outputs. Keep directory placeholders, but do not commit
+# figures, tables, caches, or experiment result dumps by default.
+outputs/figures/*
+!outputs/figures/.gitkeep
+outputs/reports/*
+!outputs/reports/.gitkeep
+Experiments/**/outputs/
+notebooks/newplot.png
+
 # Local external checkouts. Keep source checkouts here, but do not vendor them
 # into this sandbox repository.
 external/*
